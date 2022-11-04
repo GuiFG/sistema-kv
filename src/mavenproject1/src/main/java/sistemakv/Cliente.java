@@ -6,46 +6,89 @@ import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.net.Socket;
+import java.nio.file.Files;
+import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.NoSuchElementException;
 import java.util.Scanner;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class Cliente {
-
+    static final int TOTAL_SERVIDORES = 3;
+    static final ArrayList<String> ipPortasServidores = new ArrayList<>();
+    
     public static void main(String[] args) throws Exception {
-        
         Scanner scanner = new Scanner(System.in);
-        
+
         Boolean run = true;
         while (run) {
-           int opcao = menu(scanner); 
-           
-           switch (opcao) {
-               case 1 -> System.out.println("init");
-               case 2 -> System.out.println("put");
-               case 3 -> System.out.println("get");
-               default -> {
+            int opcao = menu(scanner);
+
+            switch (opcao) {
+                case 1 ->
+                    inicializacao(scanner);
+                case 2 ->
+                    System.out.println("put");
+                case 3 ->
+                    System.out.println("get");
+                default -> {
                     System.out.println("FIM");
                     run = false;
                     break;
                 }
-           }
+            }
         }
     }
-    
+
     private static int menu(Scanner scanner) {
         System.out.println("1 - INIT");
         System.out.println("2 - PUT");
         System.out.println("3 - GET");
-		
+
         int opcao = 0;
         try {
             opcao = Integer.parseInt(scanner.nextLine());
+        } catch (NoSuchElementException ex) {
         }
-        catch (NoSuchElementException ex) {}
 
         return opcao;
     }
-    
+
+    private static void inicializacao(Scanner scanner) {
+        for (int i = 0; i < TOTAL_SERVIDORES; i++) {
+            String ipPorta = lerIpPorta(scanner);
+            
+            ipPortasServidores.add(ipPorta);
+        }
+    }
+
+    private static String lerIpPorta(Scanner scanner) {
+        String ipPorta = "";
+        while (true) {
+            System.out.println("IP:PORTA = ");
+            ipPorta = scanner.nextLine();
+
+            String regex = "\\d{3}.+:\\d{1,5}";
+            Boolean valido = ehValido(ipPorta, regex);
+
+            if (valido) {
+                break;
+            }
+
+            System.out.println("Valor nao esta no formato correto. Ex: 127.0.0.1:1234");
+        }
+
+        return ipPorta;
+    }
+
+    private static Boolean ehValido(String valor, String regex) {
+        Pattern pattern = Pattern.compile(regex);
+        Matcher matcher = pattern.matcher(valor);
+
+        return matcher.find();
+    }
+
     private static void enviarMensagem() throws IOException {
         Socket s = new Socket("127.0.0.1", 9000);
 
@@ -67,6 +110,3 @@ public class Cliente {
         s.close();
     }
 }
-
-
-
