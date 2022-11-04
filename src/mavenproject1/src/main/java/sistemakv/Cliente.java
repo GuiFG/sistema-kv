@@ -31,7 +31,7 @@ public class Cliente {
                 case 2 ->
                     inserirChaveValor(scanner);
                 case 3 ->
-                    System.out.println("get");
+                    recuperarValorDaChave(scanner);
                 default -> {
                     System.out.println("FIM");
                     run = false;
@@ -97,7 +97,24 @@ public class Cliente {
         
         System.out.println("Enviando chave " + chave + " com valor " + valor);
         
+        // escolher servidor de forma aleatoria
+        
         // receber mensagem PUT_OK com timestamp
+        
+        // salvar timestamp no hash
+    }
+    
+    private static void recuperarValorDaChave(Scanner scanner) {
+        System.out.println("CHAVE = ");
+        String chave = scanner.nextLine();
+        
+        System.out.println("Recuperando valor da cahve " + chave);
+        
+        // escolher o servidor de forma aleatoria 
+        
+        // recupera o timestamp da chave 
+        
+        // envia a requisicao do get 
     }
 
     private static void enviarMensagem() throws IOException {
