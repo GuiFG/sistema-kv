@@ -29,7 +29,7 @@ public class Cliente {
                 case 1 ->
                     inicializacao(scanner);
                 case 2 ->
-                    System.out.println("put");
+                    inserirChaveValor(scanner);
                 case 3 ->
                     System.out.println("get");
                 default -> {
@@ -87,6 +87,17 @@ public class Cliente {
         Matcher matcher = pattern.matcher(valor);
 
         return matcher.find();
+    }
+    
+    private static void inserirChaveValor(Scanner scanner) {
+        System.out.println("CHAVE = ");
+        String chave = scanner.nextLine();
+        System.out.println("VALOR = ");
+        String valor = scanner.nextLine();
+        
+        System.out.println("Enviando chave " + chave + " com valor " + valor);
+        
+        // receber mensagem PUT_OK com timestamp
     }
 
     private static void enviarMensagem() throws IOException {
