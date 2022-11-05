@@ -11,6 +11,7 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
+import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,8 +20,12 @@ public class Servidor {
     private static String ipPortaLider;
     
     private static final String LOCALHOST = "127.0.0.1";
-    private static final int IDX_LIDER = 0;
+    private static int IDX_LIDER = 0;
     private static final String[] SERVIDORES = { "10097", "10098", "10099" };
+    
+    private final HashMap<String, ArrayList<String>> tabelaHash = new HashMap<>();
+    private final HashMap<UUID, Mensagem> mensagensRecebidas = new HashMap<>();
+    private final HashMap<String, Integer> contagemReplication = new HashMap<>();
     
     public static void main(String[] args) throws Exception {
         Scanner scanner = new Scanner(System.in);
@@ -32,7 +37,6 @@ public class Servidor {
     }
     
     public class ThreadAtendimento extends Thread {
-        private final HashMap<String, ArrayList<String>> tabelaHash = new HashMap<>(); 
 	private final Socket no;
    
 	public ThreadAtendimento(Socket no) {
@@ -46,7 +50,7 @@ public class Servidor {
                 Mensagem resposta = processarMensagem(mensagem);
                 
                 if (resposta != null)
-                    enviarResposta(resposta);
+                    enviarMensagem(resposta);
             }
             catch (IOException ex) {
                 System.out.println(ex.getMessage());
@@ -61,25 +65,34 @@ public class Servidor {
             
             Mensagem mensagem = Mensagem.desserializar(texto);
             
+            mensagensRecebidas.put(mensagem.getId(), mensagem);
+            
             return mensagem;
         }
         
         private Mensagem processarMensagem(Mensagem mensagem) throws IOException {
             Mensagem resposta = null;
+            
+            switch(mensagem.getTipo()) {
+                case Mensagem.PUT:
+                    resposta = put(mensagem);
+                case Mensagem.REPLICATION_OK:
+                    replicationOk(mensagem);
+                default:
+                    break;
+            }
             if (mensagem.getTipo() == Mensagem.PUT) {
                 resposta = put(mensagem);
             }
+            
             
             return resposta;
         }
         
         private Mensagem put(Mensagem mensagem) throws IOException {
-            if (!igualLider(ipPorta)) {
-                String ipLider = recuperaIpLider();
-                mensagem.setIpPortaDestino(ipLider);
-                
-                enviarMensagem(mensagem);
-                return null;
+            if (ipPortaLider.equals(ipPorta)) {
+                mensagem.setIpPortaDestino(ipPortaLider);
+                return mensagem;
             }
           
             String chave = mensagem.getChave();
@@ -103,15 +116,10 @@ public class Servidor {
             tabelaHash.put(chave, valores);
             System.out.println("Enviando mensagens de replicacao");
             ArrayList<Mensagem> mensagens = criarMensagensReplicacao(chave, valor, timestamp);
+            contagemReplication.put(chave, 0);
             
             enviarMensagens(mensagens);
-            
             return null;
-        }
-        
-        private Boolean igualLider(String ipPorta) {
-            String ipLider = recuperaIpLider();
-            return ipLider.equals(ipPorta);
         }
         
         private ArrayList<Mensagem> criarMensagensReplicacao(String chave, String valor, String timestamp) {
@@ -135,12 +143,38 @@ public class Servidor {
             return String.valueOf(valor1 + valor2);
         }
         
-        private void enviarResposta(Mensagem resposta) throws IOException {
-            String json = Mensagem.serializar(resposta);
+        private Mensagem replicationOk(Mensagem mensagem) {
+            String chave = mensagem.getChave();
+            int total = SERVIDORES.length - 1;
             
-            OutputStream os = no.getOutputStream();
-            DataOutputStream writer = new DataOutputStream(os);
-            writer.writeBytes(json);
+            int contagem = contagemReplication.get(chave);
+            if (contagem != total) {
+                contagemReplication.put(chave, contagem + 1);
+                return null;
+            }
+            
+            ArrayList<String> valores = tabelaHash.get(chave);
+            String valor = valores.get(0);
+            String timestamp = valores.get(1);
+            
+            String ipPortaCliente = recuperaIpCliente(chave);
+            
+            Mensagem putOk = new Mensagem(Mensagem.PUT_OK, ipPortaCliente, chave, valor, timestamp);
+            
+            return putOk;
+        }
+        
+        private String recuperaIpCliente(String chave) {
+            for (var set : mensagensRecebidas.entrySet()) {
+                Mensagem mensagem = set.getValue();
+                String key = mensagem.getChave();
+                
+                if (key.equals(chave)) {
+                    return mensagem.getIpPortaOrigem();
+                }
+            }
+            
+            return "";
         }
         
         private void enviarMensagens(ArrayList<Mensagem> mensagens) throws IOException {
@@ -165,10 +199,6 @@ public class Servidor {
 
             s.close();
         }
-        
-        private static String recuperaIpLider() {
-            return LOCALHOST + ":" + SERVIDORES[IDX_LIDER];
-        }
     }
     
     private static void inicializacao(Scanner scanner) {
@@ -177,6 +207,21 @@ public class Servidor {
         
         System.out.println("IP PORTA LIDER = ");
         ipPortaLider = lerIpPorta(scanner);
+        
+        String porta = String.valueOf(recuperaPorta(ipPortaLider));
+        atualizarIndiceLider(porta);
+    }
+    
+    private static void atualizarIndiceLider(String porta) {
+        int idx = 0;
+        for (int i = 0; i < SERVIDORES.length; i++) {
+            if (SERVIDORES[i].equals(porta)) {
+                idx = i;
+                break;
+            }
+        }
+        
+        IDX_LIDER = idx;
     }
     
     private static String lerIpPorta(Scanner scanner) {
