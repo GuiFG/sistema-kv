@@ -20,13 +20,22 @@ public class Mensagem {
     private String ipPortaDestino;
     private String timestamp;
     
+    
+    public Mensagem(int tipo, String ipPortaDestino, String chave) {
+        this.id = UUID.randomUUID();
+        this.tipo = tipo;
+        this.ipPortaDestino = ipPortaDestino;
+        this.chave = chave;
+    }
+    
     public Mensagem(
-            int tipo, 
-            String ipPortaDestino, 
-            String chave, 
-            String valor, 
-            String timestamp
+        int tipo, 
+        String ipPortaDestino, 
+        String chave, 
+        String valor, 
+        String timestamp
     ) {
+        this.id = UUID.randomUUID();
         this.tipo = tipo;
         this.ipPortaDestino = ipPortaDestino;
         this.chave = chave;
@@ -81,6 +90,10 @@ public class Mensagem {
     
     public String getValor() {
         return this.valor;
+    }
+    
+    public String getTimestamp() {
+        return this.timestamp;
     }
     
     public String getIpPortaOrigem() {

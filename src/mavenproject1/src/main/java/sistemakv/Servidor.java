@@ -74,17 +74,12 @@ public class Servidor {
             Mensagem resposta = null;
             
             switch(mensagem.getTipo()) {
-                case Mensagem.PUT:
-                    resposta = put(mensagem);
-                case Mensagem.REPLICATION_OK:
-                    replicationOk(mensagem);
-                default:
-                    break;
+                case Mensagem.PUT -> resposta = put(mensagem);
+                case Mensagem.REPLICATION -> resposta = replication(mensagem);
+                case Mensagem.REPLICATION_OK -> resposta = replicationOk(mensagem);
+                default -> {
+                }
             }
-            if (mensagem.getTipo() == Mensagem.PUT) {
-                resposta = put(mensagem);
-            }
-            
             
             return resposta;
         }
@@ -141,6 +136,18 @@ public class Servidor {
             int valor1 = Integer.parseInt(str1);
             
             return String.valueOf(valor1 + valor2);
+        }
+        
+        private Mensagem replication(Mensagem mensagem) {
+            ArrayList<String> valores = new ArrayList<>();
+            valores.set(0, mensagem.getValor());
+            valores.set(1, mensagem.getTimestamp());
+            
+            tabelaHash.put(mensagem.getChave(), valores);
+            
+            Mensagem resposta = new Mensagem(Mensagem.REPLICATION_OK, ipPortaLider, mensagem.getChave());
+            
+            return resposta;
         }
         
         private Mensagem replicationOk(Mensagem mensagem) {
