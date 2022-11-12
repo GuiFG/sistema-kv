@@ -13,7 +13,8 @@ public class Mensagem {
     public static final int TRY_OTHER_SERVER_OR_LATER = 6;
     
     public static final int MODE_SEND = 1;
-    public static final int MODE_REDIRECT = 2;
+    public static final int MODE_RESPONSE = 2;
+    public static final int MODE_REDIRECT = 3;
     
     private int modo;
     private int tipo;
@@ -39,9 +40,23 @@ public class Mensagem {
         return mensagem;
     }
     
+    public static Mensagem criarPut(String ipPortaDestino, String chave, String valor, String timestamp) {
+        Mensagem mensagem = new Mensagem();
+        
+        mensagem.setModo(Mensagem.MODE_REDIRECT);
+        mensagem.setTipo(Mensagem.PUT);
+        mensagem.setIpPortaDestino(ipPortaDestino);
+        mensagem.setChave(chave);
+        mensagem.setValor(valor);
+        mensagem.setTimestamp(timestamp);
+        
+        return mensagem;
+   }
+    
     public static Mensagem criarPutOk(String ipPortaDestino, String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
+        mensagem.setModo(Mensagem.MODE_REDIRECT);
         mensagem.setTipo(Mensagem.PUT_OK);
         mensagem.setIpPortaDestino(ipPortaDestino);
         mensagem.setChave(chave);
@@ -58,7 +73,8 @@ public class Mensagem {
             String timestamp
     ) {
         Mensagem mensagem = new Mensagem();
-
+        
+        mensagem.setModo(MODE_SEND);
         mensagem.setTipo(Mensagem.REPLICATION);
         mensagem.setIpPortaDestino(ipDestino);
         mensagem.setChave(chave);
@@ -70,7 +86,8 @@ public class Mensagem {
     
     public static Mensagem criarReplicationOk() {
         Mensagem mensagem = new Mensagem();
-
+        
+        mensagem.setModo(MODE_RESPONSE);
         mensagem.setTipo(Mensagem.REPLICATION_OK);
         
         return mensagem;
@@ -79,7 +96,7 @@ public class Mensagem {
     public static Mensagem criarGet(String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
-        mensagem.setModo(Mensagem.MODE_SEND);
+        mensagem.setModo(Mensagem.MODE_RESPONSE);
         mensagem.setTipo(Mensagem.GET);
         mensagem.setChave(chave);
         mensagem.setValor(valor);
@@ -91,7 +108,7 @@ public class Mensagem {
     public static Mensagem criarRetry() {
         Mensagem mensagem = new Mensagem();
         
-        mensagem.setModo(Mensagem.MODE_SEND);
+        mensagem.setModo(Mensagem.MODE_RESPONSE);
         mensagem.setTipo(Mensagem.TRY_OTHER_SERVER_OR_LATER);
         
         return mensagem;

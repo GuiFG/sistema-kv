@@ -88,16 +88,23 @@ public class Servidor {
         }
 
         private Mensagem put(Mensagem mensagem) throws IOException {
-            if (ipPortaLider.equals(ipPorta)) {
-                mensagem.setIpPortaDestino(ipPortaLider);
-                return mensagem;
+            Mensagem resposta;
+            if (!ipPortaLider.equals(ipPorta)) {
+                resposta = Mensagem.criarPut(
+                    mensagem.getIpPortaDestino(),
+                    mensagem.getChave(),
+                    mensagem.getValor(),
+                    mensagem.getTimestamp()
+                );
+                
+                return resposta;
             }
 
             String chave = mensagem.getChave();
             String valor = mensagem.getValor();
-            ArrayList<String> valores;
             String timestamp;
-
+            ArrayList<String> valores;
+            
             if (tabelaHash.containsKey(chave)) {
                 valores = tabelaHash.get(chave);
                 valores.set(0, valor);
@@ -214,25 +221,13 @@ public class Servidor {
             String valor = valores.get(0);
             String timestamp = valores.get(1);
 
-            String ipPortaCliente = mensagem.getIpPortaOrigem(); // recuperaIpCliente(chave);
+            String ipPortaCliente = mensagem.getIpPortaOrigem(); 
 
             Mensagem putOk = Mensagem.criarPutOk(ipPortaCliente, chave, valor, timestamp);
 
             return putOk;
         }
-
-        /*private String recuperaIpCliente(String chave) {
-			for (var set : mensagensRecebidas.entrySet()) {
-				Mensagem mensagem = set.getValue();
-				String key = mensagem.getChave();
-
-				if (key.equals(chave)) {
-					return mensagem.getIpPortaOrigem();
-				}
-			}
-
-			return "";
-		}*/
+        
         private void enviarMensagens(ArrayList<Mensagem> mensagens) throws IOException {
             for (Mensagem mensagem : mensagens) {
                 System.out.println("Enviando mensagem para " + mensagem.getIpPortaDestino());
@@ -241,13 +236,40 @@ public class Servidor {
         }
 
         private void enviarMensagem(Mensagem mensagem) throws IOException {
-            if (mensagem.getModo() == Mensagem.MODE_SEND)
-                enviar(mensagem);
-            else
-                redirecionar(mensagem);
+            switch (mensagem.getModo()) {
+                case Mensagem.MODE_SEND -> enviar(mensagem);
+                case Mensagem.MODE_RESPONSE -> responder(mensagem);
+                default -> redirecionar(mensagem);
+            }
         }
         
         private void enviar(Mensagem mensagem) throws IOException {
+            String ipPortaDestino = mensagem.getIpPortaDestino();
+            String ip = recuperaIp(ipPortaDestino);
+            int porta = recuperaPorta(ipPortaDestino);
+            
+            Socket s = new Socket(ip, porta);
+            	
+            OutputStream os = s.getOutputStream();
+            DataOutputStream writer = new DataOutputStream(os);
+
+            InputStreamReader is = new InputStreamReader(s.getInputStream());
+            BufferedReader reader = new BufferedReader(is);
+            
+            String json = Mensagem.serializar(mensagem);
+            writer.writeBytes(json);
+
+            String texto = reader.readLine();
+            Mensagem resposta = Mensagem.desserializar(texto);
+            Mensagem retorno = processarMensagem(resposta);
+
+            s.close();
+            
+            if (retorno != null)
+                enviarMensagem(retorno);
+        }
+        
+        private void responder(Mensagem mensagem) throws IOException {
             OutputStream os = no.getOutputStream();
             DataOutputStream writer = new DataOutputStream(os);
 			
