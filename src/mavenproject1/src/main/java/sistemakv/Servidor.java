@@ -90,6 +90,9 @@ public class Servidor {
         private Mensagem put(Mensagem mensagem) throws IOException {
             Mensagem resposta;
             if (!ipPortaLider.equals(ipPorta)) {
+                System.out.println("Encaminhando PUT key: " + mensagem.getChave() +
+                        " value: " + mensagem.getValor() + ".");
+                
                 resposta = Mensagem.criarPut(
                     mensagem.getIpPortaDestino(),
                     mensagem.getChave(),
@@ -100,6 +103,8 @@ public class Servidor {
                 return resposta;
             }
 
+            System.out.println("Cliente " + mensagem.getIpPortaOrigem() + "PUT key: " +
+                    mensagem.getChave() + " value: " + mensagem.getValor() + ".");
             String chave = mensagem.getChave();
             String valor = mensagem.getValor();
             String timestamp;
@@ -118,7 +123,7 @@ public class Servidor {
             }
 
             tabelaHash.put(chave, valores);
-            System.out.println("Enviando mensagens de replicacao");
+            
             ArrayList<Mensagem> mensagens = criarMensagensReplicacao(chave, valor, timestamp);
             contagemReplication.put(chave, 0);
 
@@ -151,32 +156,41 @@ public class Servidor {
         }
 
         private Mensagem get(Mensagem mensagem) {
+            String log = "Cliente " + mensagem.getIpPortaOrigem() + " key: " + mensagem.getChave() 
+                    + " ts: " + mensagem.getTimestamp();
             ArrayList<String> valores = tabelaHash.get(mensagem.getChave());
 
             Mensagem resposta;
             // caso nao tenha na tabela, retorna nulo
             if (valores == null) {
+                log += " Chave nao existe."; 
                 resposta = Mensagem.criarGet(mensagem.getChave(), null, null);
                 
+                System.out.println(log);
                 return resposta;
             }
 
             String timestampServer = valores.get(1);
             String timestamp = mensagem.getTimestamp();
-
+            log += ". Meu ts é " + timestampServer + ", portando devolvendo";
+            
             int cmp = CompararTimestamp(timestampServer, timestamp);
 
             // se o timestamp for menor, tenta novamente
             if (cmp < 0) {
+                log += " erro.";
                 resposta = Mensagem.criarRetry();
                 
+                System.out.println(log);
                 return resposta;
             }
 
             // timestamp maior ou igual, retorna o valor da chave
             String valor = valores.get(0);
+            log += " " + valor + ".";
             resposta = Mensagem.criarGet(mensagem.getChave(), valor, timestamp);
             
+            System.out.println(log);
             return resposta;
         }
 
@@ -202,6 +216,9 @@ public class Servidor {
 
             tabelaHash.put(mensagem.getChave(), valores);
            
+            System.out.println("REPLICATION key: " + mensagem.getChave() + " value: " + mensagem.getValor() 
+                + " ts: " + mensagem.getTimestamp() + ".");
+            
             Mensagem resposta = Mensagem.criarReplicationOk();
 
             return resposta;
@@ -223,6 +240,9 @@ public class Servidor {
 
             String ipPortaCliente = mensagem.getIpPortaOrigem(); 
 
+            System.out.println("Enviando PUT_OK ao Cliente " + ipPortaCliente + " da key: "
+                + chave + " ts: " + timestamp + ".");
+            
             Mensagem putOk = Mensagem.criarPutOk(ipPorta, ipPortaCliente, chave, valor, timestamp);
 
             return putOk;

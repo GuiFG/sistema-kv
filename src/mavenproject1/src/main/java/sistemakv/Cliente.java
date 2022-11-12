@@ -23,6 +23,7 @@ public class Cliente {
     static final int TOTAL_SERVIDORES = 3;
     static final ArrayList<String> ipPortasServidores = new ArrayList<>();
     static final HashMap<String, ArrayList<String>> tabelaHash = new HashMap<>();
+    static String ipPorta;
 
     public static void main(String[] args) throws Exception {
         Scanner scanner = new Scanner(System.in);
@@ -62,10 +63,12 @@ public class Cliente {
     }
 
     private static void inicializacao(Scanner scanner) {
+        ipPorta = lerIpPorta(scanner);
+        
         for (int i = 0; i < TOTAL_SERVIDORES; i++) {
-            String ipPorta = lerIpPorta(scanner);
+            String ipServidor = lerIpPorta(scanner);
 
-            ipPortasServidores.add(ipPorta);
+            ipPortasServidores.add(ipServidor);
         }
     }
 
@@ -104,7 +107,7 @@ public class Cliente {
         System.out.println("Enviando chave " + chave + " com valor " + valor);
         
         String ipServidor = recuperarServidorAleatorio();
-        Mensagem mensagem = Mensagem.criarPut(ipServidor, chave, valor, null);
+        Mensagem mensagem = Mensagem.criarPutClient(ipPorta, ipServidor, chave, valor);
         Mensagem resposta = enviarMensagem(mensagem);
         
         if (resposta.getTipo() != Mensagem.PUT_OK)
@@ -139,7 +142,7 @@ public class Cliente {
        
         String ipServidor = recuperarServidorAleatorio();
         
-        Mensagem mensagem = Mensagem.criarGetClient(ipServidor, chave, timestamp);
+        Mensagem mensagem = Mensagem.criarGetClient(ipPorta, ipServidor, chave, timestamp);
         Mensagem resposta = enviarMensagem(mensagem);
         
         if (resposta.getTipo() == Mensagem.TRY_OTHER_SERVER_OR_LATER)

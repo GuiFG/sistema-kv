@@ -40,6 +40,18 @@ public class Mensagem {
         return mensagem;
     }
     
+    public static Mensagem criarPutClient(String ipPortaOrigem, String ipPortaDestino, String chave, String valor) {
+        Mensagem mensagem = new Mensagem();
+        
+        mensagem.setTipo(Mensagem.PUT);
+        mensagem.setIpPortaOrigem(ipPortaOrigem);
+        mensagem.setIpPortaDestino(ipPortaDestino);
+        mensagem.setChave(chave);
+        mensagem.setValor(valor);
+        
+        return mensagem;
+   }
+    
     public static Mensagem criarPut(String ipPortaDestino, String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
@@ -94,10 +106,11 @@ public class Mensagem {
         return mensagem;
     }
     
-    public static Mensagem criarGetClient(String ipDestino, String chave, String timestamp) {
+    public static Mensagem criarGetClient(String ipOrigem, String ipDestino, String chave, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setTipo(Mensagem.GET);
+        mensagem.setIpPortaOrigem(ipOrigem);
         mensagem.setIpPortaDestino(ipDestino);
         mensagem.setChave(chave);
         mensagem.setTimestamp(timestamp);
