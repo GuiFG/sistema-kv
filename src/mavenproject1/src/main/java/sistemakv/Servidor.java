@@ -16,265 +16,317 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Servidor {
-    private static String ipPorta;
-    private static String ipPortaLider;
-    
-    private static final String LOCALHOST = "127.0.0.1";
-    private static int IDX_LIDER = 0;
-    private static final String[] SERVIDORES = { "10097", "10098", "10099" };
-    
-    private final HashMap<String, ArrayList<String>> tabelaHash = new HashMap<>();
-    private final HashMap<UUID, Mensagem> mensagensRecebidas = new HashMap<>();
-    private final HashMap<String, Integer> contagemReplication = new HashMap<>();
-    
-    public static void main(String[] args) throws Exception {
-        Scanner scanner = new Scanner(System.in);
+	private static String ipPorta;
+	private static String ipPortaLider;
 
-        inicializacao(scanner);
-        
-        Servidor servidor = new Servidor();
-        servidor.criarAtendimento();
-    }
-    
-    public class ThreadAtendimento extends Thread {
-	private final Socket no;
-   
-	public ThreadAtendimento(Socket no) {
-            this.no = no;
+	private static final String LOCALHOST = "127.0.0.1";
+	private static int IDX_LIDER = 0;
+	private static final String[] SERVIDORES = { "10097", "10098", "10099" };
+
+	private final HashMap<String, ArrayList<String>> tabelaHash = new HashMap<>();
+	private final HashMap<String, Integer> contagemReplication = new HashMap<>();
+
+	public static void main(String[] args) throws Exception {
+		Scanner scanner = new Scanner(System.in);
+
+		inicializacao(scanner);
+
+		Servidor servidor = new Servidor();
+		servidor.criarAtendimento();
 	}
-        
-	public void run() {
-            try {
-                Mensagem mensagem = recuperaMensagemStream();
-                
-                Mensagem resposta = processarMensagem(mensagem);
-                
-                if (resposta != null)
-                    enviarMensagem(resposta);
-            }
-            catch (IOException ex) {
-                System.out.println(ex.getMessage());
-            }
+
+	public class ThreadAtendimento extends Thread {
+		private final Socket no;
+
+		public ThreadAtendimento(Socket no) {
+			this.no = no;
+		}
+
+		public void run() {
+			try {
+				Mensagem mensagem = recuperaMensagemStream();
+
+				Mensagem resposta = processarMensagem(mensagem);
+
+				if (resposta != null)
+					enviarMensagem(resposta);
+			} catch (IOException ex) {
+				System.out.println(ex.getMessage());
+			}
+		}
+
+		private Mensagem recuperaMensagemStream() throws IOException {
+			InputStreamReader is = new InputStreamReader(no.getInputStream());
+			BufferedReader reader = new BufferedReader(is);
+
+			String texto = reader.readLine();
+
+			Mensagem mensagem = Mensagem.desserializar(texto);
+
+			return mensagem;
+		}
+
+		private Mensagem processarMensagem(Mensagem mensagem) throws IOException {
+			Mensagem resposta = null;
+
+			switch (mensagem.getTipo()) {
+				case Mensagem.PUT -> resposta = put(mensagem);
+				case Mensagem.GET -> resposta = get(mensagem);
+				case Mensagem.REPLICATION -> resposta = replication(mensagem);
+				case Mensagem.REPLICATION_OK -> resposta = replicationOk(mensagem);
+				default -> {
+				}
+			}
+
+			return resposta;
+		}
+
+		private Mensagem put(Mensagem mensagem) throws IOException {
+			if (ipPortaLider.equals(ipPorta)) {
+				mensagem.setIpPortaDestino(ipPortaLider);
+				return mensagem;
+			}
+
+			String chave = mensagem.getChave();
+			String valor = mensagem.getValor();
+			ArrayList<String> valores;
+			String timestamp;
+
+			if (tabelaHash.containsKey(chave)) {
+				valores = tabelaHash.get(chave);
+				valores.set(0, valor);
+				timestamp = somaString(valores.get(1), 1);
+				valores.set(1, timestamp);
+			} else {
+				valores = new ArrayList<>();
+				valores.add(0, valor);
+				timestamp = "1";
+				valores.add(1, timestamp);
+			}
+
+			tabelaHash.put(chave, valores);
+			System.out.println("Enviando mensagens de replicacao");
+			ArrayList<Mensagem> mensagens = criarMensagensReplicacao(chave, valor, timestamp);
+			contagemReplication.put(chave, 0);
+
+			enviarMensagens(mensagens);
+			return null;
+		}
+
+		private ArrayList<Mensagem> criarMensagensReplicacao(String chave, String valor, String timestamp) {
+			ArrayList<Mensagem> mensagens = new ArrayList<>();
+			int total = SERVIDORES.length;
+			for (int i = 0; i < total; i++) {
+				if (i == IDX_LIDER)
+					continue;
+
+				String ipDestino = LOCALHOST + ":" + SERVIDORES[i];
+				Mensagem mensagem = Mensagem.criarMensagemReplicacao(
+						ipDestino, chave, valor, timestamp);
+				mensagens.add(mensagem);
+			}
+
+			return mensagens;
+		}
+
+		private String somaString(String str1, int valor2) {
+			int valor1 = Integer.parseInt(str1);
+
+			return String.valueOf(valor1 + valor2);
+		}
+		
+		private Mensagem get(Mensagem mensagem) {
+			ArrayList<String> valores = tabelaHash.get(mensagem.getChave());
+			
+			Mensagem resposta;
+			// caso nao tenha na tabela, retorna nulo
+			if (valores == null)
+			{
+				resposta = new Mensagem(
+						Mensagem.GET, 
+						mensagem.getIpPortaOrigem(), 
+						mensagem.getChave(),
+						null);
+				
+				return resposta;
+			}
+			
+			String timestampServer = valores.get(1);
+			String timestamp = mensagem.getTimestamp();
+			
+			int cmp = CompararTimestamp(timestampServer, timestamp);
+			
+			// se o timestamp for menor, tenta novamente
+			if (cmp < 0) {
+				resposta = new Mensagem(
+						Mensagem.TRY_OTHER_SERVER_OR_LATER, 
+						mensagem.getIpPortaOrigem());
+				
+				return resposta;
+			}
+			
+			// timestamp maior ou igual, retorna o valor da chave
+			String valor = valores.get(0);
+			
+			resposta = new Mensagem(
+					Mensagem.GET, 
+					mensagem.getIpPortaOrigem(), 
+					mensagem.getChave(),
+					valor);
+			
+			return resposta;
+		}
+		
+		private static int CompararTimestamp(String tm1, String tm2) {
+			int v1 = Integer.parseInt(tm1);
+			int v2 = Integer.parseInt(tm2);
+			
+			if (v1 > v2)
+				return 1;
+			
+			if (v1 < v2)
+				return -1;
+			
+			return 0;
+		}
+		
+		private Mensagem replication(Mensagem mensagem) {
+			ArrayList<String> valores = new ArrayList<>();
+			valores.set(0, mensagem.getValor());
+			valores.set(1, mensagem.getTimestamp());
+
+			tabelaHash.put(mensagem.getChave(), valores);
+
+			Mensagem resposta = new Mensagem(Mensagem.REPLICATION_OK, ipPortaLider, mensagem.getChave());
+
+			return resposta;
+		}
+
+		private Mensagem replicationOk(Mensagem mensagem) {
+			String chave = mensagem.getChave();
+			int total = SERVIDORES.length - 1;
+
+			int contagem = contagemReplication.get(chave);
+			if (contagem != total) {
+				contagemReplication.put(chave, contagem + 1);
+				return null;
+			}
+
+			ArrayList<String> valores = tabelaHash.get(chave);
+			String valor = valores.get(0);
+			String timestamp = valores.get(1);
+
+			String ipPortaCliente = mensagem.getIpPortaOrigem(); // recuperaIpCliente(chave);
+
+			Mensagem putOk = new Mensagem(Mensagem.PUT_OK, ipPortaCliente, chave, valor, timestamp);
+
+			return putOk;
+		}
+
+		/*private String recuperaIpCliente(String chave) {
+			for (var set : mensagensRecebidas.entrySet()) {
+				Mensagem mensagem = set.getValue();
+				String key = mensagem.getChave();
+
+				if (key.equals(chave)) {
+					return mensagem.getIpPortaOrigem();
+				}
+			}
+
+			return "";
+		}*/
+
+		private void enviarMensagens(ArrayList<Mensagem> mensagens) throws IOException {
+			for (Mensagem mensagem : mensagens) {
+				System.out.println("Enviando mensagem para " + mensagem.getIpPortaDestino());
+				enviarMensagem(mensagem);
+			}
+		}
+
+		private void enviarMensagem(Mensagem mensagem) throws IOException {
+			String json = Mensagem.serializar(mensagem);
+			String ipPortaDestino = mensagem.getIpPortaDestino();
+			String ip = recuperaIp(ipPortaDestino);
+			int porta = recuperaPorta(ipPortaDestino);
+
+			Socket s = new Socket(ip, porta);
+
+			OutputStream os = s.getOutputStream();
+			DataOutputStream writer = new DataOutputStream(os);
+
+			writer.writeBytes(json);
+
+			s.close();
+		}
 	}
-        
-        private Mensagem recuperaMensagemStream() throws IOException {
-            InputStreamReader is = new InputStreamReader(no.getInputStream());
-            BufferedReader reader = new BufferedReader(is);
 
-            String texto = reader.readLine();
-            
-            Mensagem mensagem = Mensagem.desserializar(texto);
-            
-            mensagensRecebidas.put(mensagem.getId(), mensagem);
-            
-            return mensagem;
-        }
-        
-        private Mensagem processarMensagem(Mensagem mensagem) throws IOException {
-            Mensagem resposta = null;
-            
-            switch(mensagem.getTipo()) {
-                case Mensagem.PUT -> resposta = put(mensagem);
-                case Mensagem.REPLICATION -> resposta = replication(mensagem);
-                case Mensagem.REPLICATION_OK -> resposta = replicationOk(mensagem);
-                default -> {
-                }
-            }
-            
-            return resposta;
-        }
-        
-        private Mensagem put(Mensagem mensagem) throws IOException {
-            if (ipPortaLider.equals(ipPorta)) {
-                mensagem.setIpPortaDestino(ipPortaLider);
-                return mensagem;
-            }
-          
-            String chave = mensagem.getChave();
-            String valor = mensagem.getValor();
-            ArrayList<String> valores;
-            String timestamp;
+	private static void inicializacao(Scanner scanner) {
+		System.out.println("IP PORTA = ");
+		ipPorta = lerIpPorta(scanner);
 
-            if (tabelaHash.containsKey(chave)) {
-                valores = tabelaHash.get(chave);
-                valores.set(0, valor);
-                timestamp = somaString(valores.get(1), 1);
-                valores.set(1, timestamp);
-            }
-            else {
-                valores = new ArrayList<>();
-                valores.add(0, valor);
-                timestamp = "1";
-                valores.add(1, timestamp);
-            }
-            
-            tabelaHash.put(chave, valores);
-            System.out.println("Enviando mensagens de replicacao");
-            ArrayList<Mensagem> mensagens = criarMensagensReplicacao(chave, valor, timestamp);
-            contagemReplication.put(chave, 0);
-            
-            enviarMensagens(mensagens);
-            return null;
-        }
-        
-        private ArrayList<Mensagem> criarMensagensReplicacao(String chave, String valor, String timestamp) {
-            ArrayList<Mensagem> mensagens = new ArrayList<>();
-            int total = SERVIDORES.length;
-            for (int i = 0; i < total; i++) {
-                if (i == IDX_LIDER)
-                    continue;
-                
-                String ipDestino = LOCALHOST + ":" + SERVIDORES[i];
-                Mensagem mensagem = new Mensagem(ipDestino, chave, valor, timestamp);
-                mensagens.add(mensagem);
-            }
-            
-            return mensagens;
-        }
-        
-        private String somaString(String str1, int valor2) {
-            int valor1 = Integer.parseInt(str1);
-            
-            return String.valueOf(valor1 + valor2);
-        }
-        
-        private Mensagem replication(Mensagem mensagem) {
-            ArrayList<String> valores = new ArrayList<>();
-            valores.set(0, mensagem.getValor());
-            valores.set(1, mensagem.getTimestamp());
-            
-            tabelaHash.put(mensagem.getChave(), valores);
-            
-            Mensagem resposta = new Mensagem(Mensagem.REPLICATION_OK, ipPortaLider, mensagem.getChave());
-            
-            return resposta;
-        }
-        
-        private Mensagem replicationOk(Mensagem mensagem) {
-            String chave = mensagem.getChave();
-            int total = SERVIDORES.length - 1;
-            
-            int contagem = contagemReplication.get(chave);
-            if (contagem != total) {
-                contagemReplication.put(chave, contagem + 1);
-                return null;
-            }
-            
-            ArrayList<String> valores = tabelaHash.get(chave);
-            String valor = valores.get(0);
-            String timestamp = valores.get(1);
-            
-            String ipPortaCliente = recuperaIpCliente(chave);
-            
-            Mensagem putOk = new Mensagem(Mensagem.PUT_OK, ipPortaCliente, chave, valor, timestamp);
-            
-            return putOk;
-        }
-        
-        private String recuperaIpCliente(String chave) {
-            for (var set : mensagensRecebidas.entrySet()) {
-                Mensagem mensagem = set.getValue();
-                String key = mensagem.getChave();
-                
-                if (key.equals(chave)) {
-                    return mensagem.getIpPortaOrigem();
-                }
-            }
-            
-            return "";
-        }
-        
-        private void enviarMensagens(ArrayList<Mensagem> mensagens) throws IOException {
-            for (Mensagem mensagem : mensagens) {
-                System.out.println("Enviando mensagem para " + mensagem.getIpPortaDestino());
-                enviarMensagem(mensagem);
-            }
-        }
-        
-        private void enviarMensagem(Mensagem mensagem) throws IOException {
-            String json = Mensagem.serializar(mensagem);
-            String ipPortaDestino = mensagem.getIpPortaDestino();
-            String ip = recuperaIp(ipPortaDestino);
-            int porta = recuperaPorta(ipPortaDestino);
-            
-            Socket s = new Socket(ip, porta);
+		System.out.println("IP PORTA LIDER = ");
+		ipPortaLider = lerIpPorta(scanner);
 
-            OutputStream os = s.getOutputStream();
-            DataOutputStream writer = new DataOutputStream(os);
+		String porta = String.valueOf(recuperaPorta(ipPortaLider));
+		atualizarIndiceLider(porta);
+	}
 
-            writer.writeBytes(json);
+	private static void atualizarIndiceLider(String porta) {
+		int idx = 0;
+		for (int i = 0; i < SERVIDORES.length; i++) {
+			if (SERVIDORES[i].equals(porta)) {
+				idx = i;
+				break;
+			}
+		}
 
-            s.close();
-        }
-    }
-    
-    private static void inicializacao(Scanner scanner) {
-        System.out.println("IP PORTA = ");
-        ipPorta = lerIpPorta(scanner);
-        
-        System.out.println("IP PORTA LIDER = ");
-        ipPortaLider = lerIpPorta(scanner);
-        
-        String porta = String.valueOf(recuperaPorta(ipPortaLider));
-        atualizarIndiceLider(porta);
-    }
-    
-    private static void atualizarIndiceLider(String porta) {
-        int idx = 0;
-        for (int i = 0; i < SERVIDORES.length; i++) {
-            if (SERVIDORES[i].equals(porta)) {
-                idx = i;
-                break;
-            }
-        }
-        
-        IDX_LIDER = idx;
-    }
-    
-    private static String lerIpPorta(Scanner scanner) {
-        String ipPorta = "";
-        while (true) {
-            ipPorta = scanner.nextLine();
+		IDX_LIDER = idx;
+	}
 
-            String regex = "\\d{3}.+:\\d{1,5}";
-            Boolean valido = ehValido(ipPorta, regex);
+	private static String lerIpPorta(Scanner scanner) {
+		String ipPorta = "";
+		while (true) {
+			ipPorta = scanner.nextLine();
 
-            if (valido) {
-                break;
-            }
+			String regex = "\\d{3}.+:\\d{1,5}";
+			Boolean valido = ehValido(ipPorta, regex);
 
-            System.out.println("Valor nao esta no formato correto. Ex: 127.0.0.1:1234");
-        }
+			if (valido) {
+				break;
+			}
 
-        return ipPorta;
-    }
+			System.out.println("Valor nao esta no formato correto. Ex: 127.0.0.1:1234");
+		}
 
-    private static Boolean ehValido(String valor, String regex) {
-        Pattern pattern = Pattern.compile(regex);
-        Matcher matcher = pattern.matcher(valor);
+		return ipPorta;
+	}
 
-        return matcher.find();
-    }
-    
-    private void criarAtendimento() throws IOException {
-        int porta = recuperaPorta(ipPorta);
-        
-        ServerSocket serverSocket = new ServerSocket(porta);
-        while (true) {
-            System.out.println("Esperando conexao");
-            Socket no = serverSocket.accept();
-            System.out.println("Conexao aceita");
-            
-            ThreadAtendimento thread = new ThreadAtendimento(no);
-            thread.start();
-        }
-    }
-    
-    private static String recuperaIp(String ipPorta) {
-        return ipPorta.split(":")[0];
-    }
+	private static Boolean ehValido(String valor, String regex) {
+		Pattern pattern = Pattern.compile(regex);
+		Matcher matcher = pattern.matcher(valor);
 
-    private static int recuperaPorta(String ipPorta) {
-        return Integer.parseInt(ipPorta.split(":")[1]);
-    }
+		return matcher.find();
+	}
+
+	private void criarAtendimento() throws IOException {
+		int porta = recuperaPorta(ipPorta);
+
+		ServerSocket serverSocket = new ServerSocket(porta);
+		while (true) {
+			System.out.println("Esperando conexao");
+			Socket no = serverSocket.accept();
+			System.out.println("Conexao aceita");
+
+			ThreadAtendimento thread = new ThreadAtendimento(no);
+			thread.start();
+		}
+	}
+
+	private static String recuperaIp(String ipPorta) {
+		return ipPorta.split(":")[0];
+	}
+
+	private static int recuperaPorta(String ipPorta) {
+		return Integer.parseInt(ipPorta.split(":")[1]);
+	}
 }
