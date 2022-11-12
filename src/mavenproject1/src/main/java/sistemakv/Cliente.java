@@ -107,16 +107,20 @@ public class Cliente {
         Mensagem mensagem = Mensagem.criarPut(ipServidor, chave, valor, null);
         Mensagem resposta = enviarMensagem(mensagem);
         
-        if (resposta.getTipo() == Mensagem.PUT_OK)
+        if (resposta.getTipo() != Mensagem.PUT_OK)
         {
-            ArrayList<String> valores = new ArrayList<>();
-            valores.set(0, valor);
-            valores.set(1, resposta.getTimestamp());
-
-            tabelaHash.put(chave, valores);
+            System.out.println("PUT Erro ao inserir a chave " + chave + " e valor " + valor);
+            return;
         }
         
-        mostrarMensagem(resposta);
+        ArrayList<String> valores = new ArrayList<>();
+        valores.set(0, valor);
+        valores.set(1, resposta.getTimestamp());
+
+        tabelaHash.put(chave, valores);
+        
+        System.out.println("PUT_OK key: " + resposta.getChave() + " value: " + resposta.getValor() + " timestamp " + 
+                resposta.getTimestamp() + " realizada no servidor " + resposta.getIpPortaOrigem());
     }
 
     private static void recuperarValorDaChave(Scanner scanner) throws IOException {
@@ -125,7 +129,7 @@ public class Cliente {
         
         if (!tabelaHash.containsKey(chave))
         {
-            System.out.println("Chave nao existe");
+            System.out.println("Chave " + chave + " nao existe");
             return;
         }
         
@@ -138,7 +142,14 @@ public class Cliente {
         Mensagem mensagem = Mensagem.criarGetClient(ipServidor, chave, timestamp);
         Mensagem resposta = enviarMensagem(mensagem);
         
-        mostrarMensagem(resposta);
+        if (resposta.getTipo() == Mensagem.TRY_OTHER_SERVER_OR_LATER)
+        {
+            System.out.println("GET Tentar novamente mais tarde ou em outro servidor");
+            return;
+        }
+        
+        System.out.println("GET key: " + resposta.getChave() + " value: " + resposta.getValor() + " obtido do servidor " + resposta.getIpPortaOrigem() 
+                + ", meu timestamp " + timestamp + " e do servidor " + resposta.getTimestamp());
     }
 
     private static Mensagem enviarMensagem(Mensagem mensagem) throws IOException {
@@ -163,10 +174,6 @@ public class Cliente {
         s.close();
         
         return resposta;
-    }
-    
-    private static void mostrarMensagem(Mensagem mensagem) {
-        System.out.println(mensagem.getChave() + " " + mensagem.getValor());
     }
     
     private static String recuperaIp(String ipPorta) {

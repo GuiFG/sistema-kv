@@ -53,11 +53,12 @@ public class Mensagem {
         return mensagem;
    }
     
-    public static Mensagem criarPutOk(String ipPortaDestino, String chave, String valor, String timestamp) {
+    public static Mensagem criarPutOk(String ipPortaOrigem, String ipPortaDestino, String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setModo(Mensagem.MODE_REDIRECT);
         mensagem.setTipo(Mensagem.PUT_OK);
+        mensagem.setIpPortaOrigem(ipPortaOrigem);
         mensagem.setIpPortaDestino(ipPortaDestino);
         mensagem.setChave(chave);
         mensagem.setValor(valor);

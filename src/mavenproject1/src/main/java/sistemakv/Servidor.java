@@ -223,7 +223,7 @@ public class Servidor {
 
             String ipPortaCliente = mensagem.getIpPortaOrigem(); 
 
-            Mensagem putOk = Mensagem.criarPutOk(ipPortaCliente, chave, valor, timestamp);
+            Mensagem putOk = Mensagem.criarPutOk(ipPorta, ipPortaCliente, chave, valor, timestamp);
 
             return putOk;
         }
