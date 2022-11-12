@@ -15,9 +15,10 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
 public class Cliente {
+
     static final int TOTAL_SERVIDORES = 3;
     static final ArrayList<String> ipPortasServidores = new ArrayList<>();
-    
+
     public static void main(String[] args) throws Exception {
         Scanner scanner = new Scanner(System.in);
 
@@ -58,7 +59,7 @@ public class Cliente {
     private static void inicializacao(Scanner scanner) {
         for (int i = 0; i < TOTAL_SERVIDORES; i++) {
             String ipPorta = lerIpPorta(scanner);
-            
+
             ipPortasServidores.add(ipPorta);
         }
     }
@@ -88,32 +89,28 @@ public class Cliente {
 
         return matcher.find();
     }
-    
+
     private static void inserirChaveValor(Scanner scanner) {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
         System.out.println("VALOR = ");
         String valor = scanner.nextLine();
-        
+
         System.out.println("Enviando chave " + chave + " com valor " + valor);
-        
+
         // escolher servidor de forma aleatoria
-        
         // receber mensagem PUT_OK com timestamp
-        
         // salvar timestamp no hash
     }
-    
+
     private static void recuperarValorDaChave(Scanner scanner) {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
-        
+
         System.out.println("Recuperando valor da cahve " + chave);
-        
+
         // escolher o servidor de forma aleatoria 
-        
         // recupera o timestamp da chave 
-        
         // envia a requisicao do get 
     }
 
