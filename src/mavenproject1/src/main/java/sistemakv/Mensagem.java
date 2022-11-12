@@ -93,6 +93,17 @@ public class Mensagem {
         return mensagem;
     }
     
+    public static Mensagem criarGet(String ipDestino, String chave, String timestamp) {
+        Mensagem mensagem = new Mensagem();
+        
+        mensagem.setTipo(Mensagem.GET);
+        mensagem.setIpPortaDestino(ipDestino);
+        mensagem.setChave(chave);
+        mensagem.setTimestamp(timestamp);
+        
+        return mensagem;
+    }
+    
     public static Mensagem criarGet(String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
