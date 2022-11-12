@@ -10,7 +10,6 @@ import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Scanner;
-import java.util.UUID;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -242,16 +241,30 @@ public class Servidor {
         }
 
         private void enviarMensagem(Mensagem mensagem) throws IOException {
+            if (mensagem.getModo() == Mensagem.MODE_SEND)
+                enviar(mensagem);
+            else
+                redirecionar(mensagem);
+        }
+        
+        private void enviar(Mensagem mensagem) throws IOException {
+            OutputStream os = no.getOutputStream();
+            DataOutputStream writer = new DataOutputStream(os);
+			
+            String json = Mensagem.serializar(mensagem);
+            
+            writer.writeBytes(json);
+        }
+        
+        private void redirecionar(Mensagem mensagem) throws IOException {
             String json = Mensagem.serializar(mensagem);
             String ipPortaDestino = mensagem.getIpPortaDestino();
             String ip = recuperaIp(ipPortaDestino);
             int porta = recuperaPorta(ipPortaDestino);
-
+            
             Socket s = new Socket(ip, porta);
-
             OutputStream os = s.getOutputStream();
             DataOutputStream writer = new DataOutputStream(os);
-
             writer.writeBytes(json);
 
             s.close();

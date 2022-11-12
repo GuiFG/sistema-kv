@@ -11,7 +11,11 @@ public class Mensagem {
     public static final int REPLICATION = 4;
     public static final int REPLICATION_OK = 5;
     public static final int TRY_OTHER_SERVER_OR_LATER = 6;
-
+    
+    public static final int MODE_SEND = 1;
+    public static final int MODE_REDIRECT = 2;
+    
+    private int modo;
     private int tipo;
     private String chave;
     private String valor;
@@ -75,6 +79,7 @@ public class Mensagem {
     public static Mensagem criarGet(String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
+        mensagem.setModo(Mensagem.MODE_SEND);
         mensagem.setTipo(Mensagem.GET);
         mensagem.setChave(chave);
         mensagem.setValor(valor);
@@ -86,9 +91,18 @@ public class Mensagem {
     public static Mensagem criarRetry() {
         Mensagem mensagem = new Mensagem();
         
+        mensagem.setModo(Mensagem.MODE_SEND);
         mensagem.setTipo(Mensagem.TRY_OTHER_SERVER_OR_LATER);
         
         return mensagem;
+    }
+    
+    public int getModo() {
+        return this.modo;
+    }
+
+    public void setModo(int modo) {
+        this.modo = modo;
     }
 
     public int getTipo() {
