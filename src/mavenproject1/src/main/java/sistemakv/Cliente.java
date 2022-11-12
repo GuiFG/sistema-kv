@@ -30,21 +30,27 @@ public class Cliente {
 
         Boolean run = true;
         while (run) {
-            int opcao = menu(scanner);
+            try {
+                int opcao = menu(scanner);
 
-            switch (opcao) {
-                case INIT ->
-                    inicializacao(scanner);
-                case PUT ->
-                    inserirChaveValor(scanner);
-                case GET ->
-                    recuperarValorDaChave(scanner);
-                default -> {
-                    System.out.println("FIM");
-                    run = false;
-                    break;
+                switch (opcao) {
+                    case INIT ->
+                        inicializacao(scanner);
+                    case PUT ->
+                        inserirChaveValor(scanner);
+                    case GET ->
+                        recuperarValorDaChave(scanner);
+                    default -> {
+                        System.out.println("FIM");
+                        run = false;
+                        break;
+                    }
                 }
             }
+            catch (Exception ex) {
+                System.out.println("ERRO: " + ex.getMessage());
+            }
+            
         }
     }
 
@@ -63,19 +69,19 @@ public class Cliente {
     }
 
     private static void inicializacao(Scanner scanner) {
-        ipPorta = lerIpPorta(scanner);
+        ipPorta = lerIpPorta(scanner, "IP:PORTA = ");
         
         for (int i = 0; i < TOTAL_SERVIDORES; i++) {
-            String ipServidor = lerIpPorta(scanner);
+            String ipServidor = lerIpPorta(scanner, "IP:PORTA SERVIDOR = ");
 
             ipPortasServidores.add(ipServidor);
         }
     }
 
-    private static String lerIpPorta(Scanner scanner) {
+    private static String lerIpPorta(Scanner scanner, String mensagemInput) {
         String ipPorta = "";
         while (true) {
-            System.out.println("IP:PORTA = ");
+            System.out.println(mensagemInput);
             ipPorta = scanner.nextLine();
 
             String regex = "\\d{3}.+:\\d{1,5}";
@@ -104,21 +110,24 @@ public class Cliente {
         System.out.println("VALOR = ");
         String valor = scanner.nextLine();
 
-        System.out.println("Enviando chave " + chave + " com valor " + valor);
-        
         String ipServidor = recuperarServidorAleatorio();
         Mensagem mensagem = Mensagem.criarPutClient(ipPorta, ipServidor, chave, valor);
         Mensagem resposta = enviarMensagem(mensagem);
         
+        if (resposta == null)
+            return;
+        
         if (resposta.getTipo() != Mensagem.PUT_OK)
         {
-            System.out.println("PUT Erro ao inserir a chave " + chave + " e valor " + valor);
+            System.out.println("PUT_OK key: " + resposta.getChave() + " value: " + resposta.getValor() + " timestamp " + 
+                resposta.getTimestamp() + " realizada no servidor " + resposta.getIpPortaOrigem()
+                + ". Erro ao inserir a chave");
             return;
         }
         
         ArrayList<String> valores = new ArrayList<>();
-        valores.set(0, valor);
-        valores.set(1, resposta.getTimestamp());
+        valores.add(0, valor);
+        valores.add(1, resposta.getTimestamp());
 
         tabelaHash.put(chave, valores);
         
@@ -145,9 +154,17 @@ public class Cliente {
         Mensagem mensagem = Mensagem.criarGetClient(ipPorta, ipServidor, chave, timestamp);
         Mensagem resposta = enviarMensagem(mensagem);
         
+        if (resposta == null)
+        {
+            System.out.println("Erro ao enviar a mensagem");
+            return;
+        }
+        
         if (resposta.getTipo() == Mensagem.TRY_OTHER_SERVER_OR_LATER)
         {
-            System.out.println("GET Tentar novamente mais tarde ou em outro servidor");
+            System.out.println("GET key: " + resposta.getChave() + " obtido do servidor " + resposta.getIpPortaOrigem() 
+                + ", meu timestamp " + timestamp + " e do servidor " + resposta.getTimestamp() 
+                + ". Tentar novamente mais tarde ou em outro servidor.");
             return;
         }
         
@@ -160,21 +177,23 @@ public class Cliente {
         String ip = recuperaIp(ipPortaDestino);
         int porta = recuperaPorta(ipPortaDestino);
         
-        Socket s = new Socket(ip, porta);
-
-        OutputStream os = s.getOutputStream();
-        DataOutputStream writer = new DataOutputStream(os);
-
-        InputStreamReader is = new InputStreamReader(s.getInputStream());
-        BufferedReader reader = new BufferedReader(is);
+        System.out.println("Enviando mensagem para " + ip + " e porta " + porta);
         
-        String json = Mensagem.serializar(mensagem);
-        writer.writeBytes(json);
-
-        String retorno = reader.readLine();
-        Mensagem resposta = Mensagem.desserializar(retorno);
-        
-        s.close();
+        Mensagem resposta = null;
+        try (Socket s = new Socket(ip, porta)) {
+            OutputStream os = s.getOutputStream();
+            DataOutputStream writer = new DataOutputStream(os);
+            InputStreamReader is = new InputStreamReader(s.getInputStream());
+            BufferedReader reader = new BufferedReader(is);
+            
+            String json = Mensagem.serializar(mensagem);
+            writer.writeBytes(json + "\n");
+            System.out.println("mensagem enviada, esperando resposta do servidor");
+            String retorno = reader.readLine();
+            resposta = Mensagem.desserializar(retorno);
+        } catch (Exception ex) {
+            System.out.println("ERRO: " + ex.getMessage());
+        }
         
         return resposta;
     }

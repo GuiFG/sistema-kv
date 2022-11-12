@@ -6,7 +6,7 @@ import java.util.HashMap;
 public class Mensagem {
 
     public static final int PUT = 1;
-    public static final int PUT_OK = 1;
+    public static final int PUT_OK = 2;
     public static final int GET = 3;
     public static final int REPLICATION = 4;
     public static final int REPLICATION_OK = 5;
@@ -52,11 +52,12 @@ public class Mensagem {
         return mensagem;
    }
     
-    public static Mensagem criarPut(String ipPortaDestino, String chave, String valor, String timestamp) {
+    public static Mensagem criarPut(String ipPortaOrigem, String ipPortaDestino, String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setModo(Mensagem.MODE_REDIRECT);
         mensagem.setTipo(Mensagem.PUT);
+        mensagem.setIpPortaOrigem(ipPortaOrigem);
         mensagem.setIpPortaDestino(ipPortaDestino);
         mensagem.setChave(chave);
         mensagem.setValor(valor);
@@ -80,6 +81,7 @@ public class Mensagem {
    }
 
     public static Mensagem criarReplication(
+            String ipOrigem,
             String ipDestino,
             String chave,
             String valor,
@@ -89,6 +91,7 @@ public class Mensagem {
         
         mensagem.setModo(MODE_SEND);
         mensagem.setTipo(Mensagem.REPLICATION);
+        mensagem.setIpPortaOrigem((ipOrigem));
         mensagem.setIpPortaDestino(ipDestino);
         mensagem.setChave(chave);
         mensagem.setValor(valor);
@@ -97,11 +100,13 @@ public class Mensagem {
         return mensagem;
     }
     
-    public static Mensagem criarReplicationOk() {
+    public static Mensagem criarReplicationOk(String ipOrigem, String chave) {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setModo(MODE_RESPONSE);
         mensagem.setTipo(Mensagem.REPLICATION_OK);
+        mensagem.setIpPortaOrigem(ipOrigem);
+        mensagem.setChave(chave);
         
         return mensagem;
     }
@@ -130,11 +135,12 @@ public class Mensagem {
         return mensagem;
     }
     
-    public static Mensagem criarRetry() {
+    public static Mensagem criarRetry(String timestamp) {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setModo(Mensagem.MODE_RESPONSE);
         mensagem.setTipo(Mensagem.TRY_OTHER_SERVER_OR_LATER);
+        mensagem.setTimestamp(timestamp);
         
         return mensagem;
     }
