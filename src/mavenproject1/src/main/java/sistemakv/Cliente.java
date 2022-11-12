@@ -135,7 +135,7 @@ public class Cliente {
        
         String ipServidor = recuperarServidorAleatorio();
         
-        Mensagem mensagem = Mensagem.criarGet(ipServidor, chave, timestamp);
+        Mensagem mensagem = Mensagem.criarGetClient(ipServidor, chave, timestamp);
         Mensagem resposta = enviarMensagem(mensagem);
         
         mostrarMensagem(resposta);

@@ -93,7 +93,7 @@ public class Mensagem {
         return mensagem;
     }
     
-    public static Mensagem criarGet(String ipDestino, String chave, String timestamp) {
+    public static Mensagem criarGetClient(String ipDestino, String chave, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setTipo(Mensagem.GET);
