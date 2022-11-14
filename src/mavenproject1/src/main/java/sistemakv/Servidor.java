@@ -9,7 +9,10 @@ import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.Random;
 import java.util.Scanner;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -46,7 +49,7 @@ public class Servidor {
         public void run() {
             try {
                 Mensagem mensagem = recuperaMensagemStream();
-                
+
                 Mensagem resposta = processarMensagem(mensagem);
 
                 if (resposta != null) {
@@ -54,16 +57,18 @@ public class Servidor {
                 }
             } catch (IOException ex) {
                 System.out.println(ex.getMessage());
+            } catch (InterruptedException ex) {
+                System.out.println(ex.getMessage());
             }
         }
 
         private Mensagem recuperaMensagemStream() throws IOException {
             InputStreamReader is = new InputStreamReader(no.getInputStream());
             BufferedReader reader = new BufferedReader(is);
-            
+
             System.out.println("Recuperando a mensagem da stream");
             String texto = reader.readLine();
-            
+
             System.out.println("texto recuperado " + texto);
 
             Mensagem mensagem = Mensagem.desserializar(texto);
@@ -71,7 +76,7 @@ public class Servidor {
             return mensagem;
         }
 
-        private Mensagem processarMensagem(Mensagem mensagem) throws IOException {
+        private Mensagem processarMensagem(Mensagem mensagem) throws IOException, InterruptedException {
             Mensagem resposta = null;
 
             switch (mensagem.getTipo()) {
@@ -90,33 +95,33 @@ public class Servidor {
             return resposta;
         }
 
-        private Mensagem put(Mensagem mensagem) throws IOException {
+        private Mensagem put(Mensagem mensagem) throws IOException, InterruptedException {
             System.out.println("Entrando no put");
             Mensagem resposta;
             if (!ipPortaLider.equals(ipPorta)) {
-                System.out.println("Encaminhando PUT key: " + mensagem.getChave() +
-                        " value: " + mensagem.getValor() + ".");
-                
+                System.out.println("Encaminhando PUT key: " + mensagem.getChave()
+                        + " value: " + mensagem.getValor() + ".");
+
                 System.out.println("Encaminhando para o lider " + ipPortaLider);
                 resposta = Mensagem.criarPut(
-                    mensagem.getIpPortaOrigem(),
-                    ipPortaLider,
-                    mensagem.getChave(),
-                    mensagem.getValor(),
-                    mensagem.getTimestamp()
+                        mensagem.getIpPortaOrigem(),
+                        ipPortaLider,
+                        mensagem.getChave(),
+                        mensagem.getValor(),
+                        mensagem.getTimestamp()
                 );
-                
+
                 return resposta;
             }
-            
-            String ipOrigem =  mensagem.getIpPortaOrigem();
-            System.out.println("Cliente " + ipOrigem + " PUT key: " +
-                    mensagem.getChave() + " value: " + mensagem.getValor() + ".");
+
+            String ipOrigem = mensagem.getIpPortaOrigem();
+            System.out.println("Cliente " + ipOrigem + " PUT key: "
+                    + mensagem.getChave() + " value: " + mensagem.getValor() + ".");
             String chave = mensagem.getChave();
             String valor = mensagem.getValor();
             String timestamp;
             ArrayList<String> valores;
-            
+
             if (tabelaHash.containsKey(chave)) {
                 valores = tabelaHash.get(chave);
                 valores.set(0, valor);
@@ -130,7 +135,7 @@ public class Servidor {
             }
 
             tabelaHash.put(chave, valores);
-            
+
             ArrayList<Mensagem> mensagens = criarMensagensReplicacao(ipOrigem, chave, valor, timestamp);
             contagemReplication.put(chave, 0);
 
@@ -149,7 +154,7 @@ public class Servidor {
                 String ipDestino = LOCALHOST + ":" + SERVIDORES[i];
                 System.out.println("Criando mensagem de replication para " + ipDestino);
                 Mensagem mensagem = Mensagem.criarReplication(
-                    ipOrigem, ipDestino, chave, valor, timestamp
+                        ipOrigem, ipDestino, chave, valor, timestamp
                 );
                 mensagens.add(mensagem);
             }
@@ -164,16 +169,16 @@ public class Servidor {
         }
 
         private Mensagem get(Mensagem mensagem) {
-            String log = "Cliente " + mensagem.getIpPortaOrigem() + " key: " + mensagem.getChave() 
+            String log = "Cliente " + mensagem.getIpPortaOrigem() + " key: " + mensagem.getChave()
                     + " ts: " + mensagem.getTimestamp();
             ArrayList<String> valores = tabelaHash.get(mensagem.getChave());
 
             Mensagem resposta;
             // caso nao tenha na tabela, retorna nulo
             if (valores == null) {
-                log += " Chave nao existe."; 
-                resposta = Mensagem.criarGet(mensagem.getChave(), null, null);
-                
+                log += " Chave nao existe.";
+                resposta = Mensagem.criarGet(ipPorta, mensagem.getChave(), null, null);
+
                 System.out.println(log);
                 return resposta;
             }
@@ -181,14 +186,14 @@ public class Servidor {
             String timestampServer = valores.get(1);
             String timestamp = mensagem.getTimestamp();
             log += ". Meu ts é " + timestampServer + ", portando devolvendo";
-            
+
             int cmp = CompararTimestamp(timestampServer, timestamp);
 
             // se o timestamp for menor, tenta novamente
             if (cmp < 0) {
                 log += " erro.";
                 resposta = Mensagem.criarRetry(timestampServer);
-                
+
                 System.out.println(log);
                 return resposta;
             }
@@ -196,8 +201,8 @@ public class Servidor {
             // timestamp maior ou igual, retorna o valor da chave
             String valor = valores.get(0);
             log += " " + valor + ".";
-            resposta = Mensagem.criarGet(mensagem.getChave(), valor, timestamp);
-            
+            resposta = Mensagem.criarGet(ipPorta, mensagem.getChave(), valor, timestamp);
+
             System.out.println(log);
             return resposta;
         }
@@ -223,10 +228,10 @@ public class Servidor {
             valores.add(mensagem.getTimestamp());
 
             tabelaHash.put(mensagem.getChave(), valores);
-           
-            System.out.println("REPLICATION key: " + mensagem.getChave() + " value: " + mensagem.getValor() 
-                + " ts: " + mensagem.getTimestamp() + ".");
-            
+
+            System.out.println("REPLICATION key: " + mensagem.getChave() + " value: " + mensagem.getValor()
+                    + " ts: " + mensagem.getTimestamp() + ".");
+
             Mensagem resposta = Mensagem.criarReplicationOk(mensagem.getIpPortaOrigem(), mensagem.getChave());
 
             return resposta;
@@ -243,82 +248,95 @@ public class Servidor {
                 contagemReplication.put(chave, contagem);
                 return null;
             }
-            
+
             System.out.println("replication ok para todos os servidores");
 
             ArrayList<String> valores = tabelaHash.get(chave);
             String valor = valores.get(0);
             String timestamp = valores.get(1);
 
-            String ipPortaCliente = mensagem.getIpPortaOrigem(); 
+            String ipPortaCliente = mensagem.getIpPortaOrigem();
 
             System.out.println("Enviando PUT_OK ao Cliente " + ipPortaCliente + " da key: "
-                + chave + " ts: " + timestamp + ".");
-            
+                    + chave + " ts: " + timestamp + ".");
+
             Mensagem putOk = Mensagem.criarPutOk(ipPorta, ipPortaCliente, chave, valor, timestamp);
 
             return putOk;
         }
-        
-        private void enviarMensagens(ArrayList<Mensagem> mensagens) throws IOException {
+
+        private void enviarMensagens(ArrayList<Mensagem> mensagens) throws IOException, InterruptedException {
             for (Mensagem mensagem : mensagens) {
                 System.out.println("Enviando mensagem para " + mensagem.getIpPortaDestino());
+
+                esperarTempoAleatorio();
+
                 enviarMensagem(mensagem);
             }
         }
 
+        private static void esperarTempoAleatorio() throws InterruptedException {
+            Random random = new Random();
+            int n = random.nextInt(1, 3);
+            Thread.sleep(n * 1000);
+        }
+
         private void enviarMensagem(Mensagem mensagem) throws IOException {
             switch (mensagem.getModo()) {
-                case Mensagem.MODE_SEND -> enviar(mensagem);
-                case Mensagem.MODE_RESPONSE -> responder(mensagem);
-                default -> redirecionar(mensagem);
+                case Mensagem.MODE_SEND ->
+                    enviar(mensagem);
+                case Mensagem.MODE_RESPONSE ->
+                    responder(mensagem);
+                default ->
+                    redirecionar(mensagem);
             }
         }
-        
+
         private void enviar(Mensagem mensagem) throws IOException {
             String ipPortaDestino = mensagem.getIpPortaDestino();
             String ip = recuperaIp(ipPortaDestino);
             int porta = recuperaPorta(ipPortaDestino);
-            
+
             Mensagem retorno = null;
-            try (Socket s = new Socket(ip, porta)) {
+            try ( Socket s = new Socket(ip, porta)) {
                 OutputStream os = s.getOutputStream();
                 DataOutputStream writer = new DataOutputStream(os);
                 InputStreamReader is = new InputStreamReader(s.getInputStream());
                 BufferedReader reader = new BufferedReader(is);
-                
+
                 String json = Mensagem.serializar(mensagem);
                 writer.writeBytes(json + "\n");
-                
+
                 String texto = reader.readLine();
                 System.out.println("resposta recebida " + ipPortaDestino + " " + texto);
-                
+
                 Mensagem resposta = Mensagem.desserializar(texto);
                 retorno = processarMensagem(resposta);
             } catch (Exception ex) {
                 System.out.println("ERRO: " + ex.getMessage());
             }
-            
-            if (retorno != null)
+
+            if (retorno != null) {
                 enviarMensagem(retorno);
+            }
         }
-        
+
         private void responder(Mensagem mensagem) throws IOException {
             OutputStream os = no.getOutputStream();
             DataOutputStream writer = new DataOutputStream(os);
-			
+
             String json = Mensagem.serializar(mensagem);
-            
+
             writer.writeBytes(json + "\n");
         }
-        
+
         private void redirecionar(Mensagem mensagem) throws IOException {
             String json = Mensagem.serializar(mensagem);
             String ipPortaDestino = mensagem.getIpPortaDestino();
             String ip = recuperaIp(ipPortaDestino);
             int porta = recuperaPorta(ipPortaDestino);
-            
-            try (Socket s = new Socket(ip, porta)) {
+
+            try ( Socket s = new Socket(ip, porta)) {
                 OutputStream os = s.getOutputStream();
                 DataOutputStream writer = new DataOutputStream(os);
                 writer.writeBytes(json + "\n");

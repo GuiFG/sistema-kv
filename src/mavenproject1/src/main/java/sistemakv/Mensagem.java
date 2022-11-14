@@ -4,7 +4,7 @@ import com.google.gson.Gson;
 import java.util.HashMap;
 
 public class Mensagem {
-
+    
     public static final int PUT = 1;
     public static final int PUT_OK = 2;
     public static final int GET = 3;
@@ -23,17 +23,17 @@ public class Mensagem {
     private String ipPortaOrigem;
     private String ipPortaDestino;
     private String timestamp;
-
+    
     public Mensagem() {
     }
     
     public static String serializar(Mensagem mensagem) {
         Gson gson = new Gson();
         String json = gson.toJson(mensagem);
-
+        
         return json;
     }
-
+    
     public static Mensagem desserializar(String json) {
         Gson gson = new Gson();
         Mensagem mensagem = gson.fromJson(json, Mensagem.class);
@@ -50,7 +50,7 @@ public class Mensagem {
         mensagem.setValor(valor);
         
         return mensagem;
-   }
+    }
     
     public static Mensagem criarPut(String ipPortaOrigem, String ipPortaDestino, String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
@@ -64,7 +64,7 @@ public class Mensagem {
         mensagem.setTimestamp(timestamp);
         
         return mensagem;
-   }
+    }
     
     public static Mensagem criarPutOk(String ipPortaOrigem, String ipPortaDestino, String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
@@ -78,8 +78,8 @@ public class Mensagem {
         mensagem.setTimestamp(timestamp);
         
         return mensagem;
-   }
-
+    }
+    
     public static Mensagem criarReplication(
             String ipOrigem,
             String ipDestino,
@@ -96,7 +96,7 @@ public class Mensagem {
         mensagem.setChave(chave);
         mensagem.setValor(valor);
         mensagem.setTimestamp(timestamp);
-
+        
         return mensagem;
     }
     
@@ -123,11 +123,12 @@ public class Mensagem {
         return mensagem;
     }
     
-    public static Mensagem criarGet(String chave, String valor, String timestamp) {
+    public static Mensagem criarGet(String ipOrigem, String chave, String valor, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setModo(Mensagem.MODE_RESPONSE);
         mensagem.setTipo(Mensagem.GET);
+        mensagem.setIpPortaOrigem(ipOrigem);
         mensagem.setChave(chave);
         mensagem.setValor(valor);
         mensagem.setTimestamp(timestamp);
@@ -148,55 +149,55 @@ public class Mensagem {
     public int getModo() {
         return this.modo;
     }
-
+    
     public void setModo(int modo) {
         this.modo = modo;
     }
-
+    
     public int getTipo() {
         return this.tipo;
     }
-
+    
     public void setTipo(int tipo) {
         this.tipo = tipo;
     }
-
+    
     public String getChave() {
         return this.chave;
     }
-
+    
     public void setChave(String chave) {
         this.chave = chave;
     }
-
+    
     public String getValor() {
         return this.valor;
     }
-
+    
     public void setValor(String valor) {
         this.valor = valor;
     }
-
+    
     public String getTimestamp() {
         return this.timestamp;
     }
-
+    
     public void setTimestamp(String timestamp) {
         this.timestamp = timestamp;
     }
-
+    
     public String getIpPortaOrigem() {
         return this.ipPortaOrigem;
     }
-
+    
     public void setIpPortaOrigem(String ipPortaOrigem) {
         this.ipPortaOrigem = ipPortaOrigem;
     }
-
+    
     public String getIpPortaDestino() {
         return this.ipPortaDestino;
     }
-
+    
     public void setIpPortaDestino(String ipPorta) {
         this.ipPortaDestino = ipPorta;
     }
