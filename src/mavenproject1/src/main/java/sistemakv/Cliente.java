@@ -172,8 +172,18 @@ public class Cliente {
             return;
         }
         
-        System.out.println("GET key: " + resposta.getChave() + " value: " + resposta.getValor() + " obtido do servidor " + resposta.getIpPortaOrigem() 
+        System.out.println("GET key: " + resposta.getChave() + " value: " + resposta.getValor() + " obtido do servidor " + ipServidor 
                 + ", meu timestamp " + timestamp + " e do servidor " + resposta.getTimestamp());
+        
+        atualizarTimestamp(resposta);
+    }
+    
+    private static void atualizarTimestamp(Mensagem mensagem) {
+        ArrayList<String> valores = tabelaHash.get(mensagem.getChave());
+        
+        valores.set(1, mensagem.getTimestamp());
+        
+        tabelaHash.put(mensagem.getChave(), valores);
     }
 
     private static Mensagem enviarReceberMensagem(Mensagem mensagem) throws IOException {
