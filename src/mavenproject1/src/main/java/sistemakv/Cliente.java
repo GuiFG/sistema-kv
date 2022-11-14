@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -112,7 +113,10 @@ public class Cliente {
 
         String ipServidor = recuperarServidorAleatorio();
         Mensagem mensagem = Mensagem.criarPutClient(ipPorta, ipServidor, chave, valor);
-        Mensagem resposta = enviarMensagem(mensagem);
+        enviarMensagem(mensagem);
+        
+        System.out.println("Esperando resposta do servidor");
+        Mensagem resposta = receberMensagem();
         
         if (resposta == null)
             return;
@@ -152,7 +156,7 @@ public class Cliente {
         String ipServidor = recuperarServidorAleatorio();
         
         Mensagem mensagem = Mensagem.criarGetClient(ipPorta, ipServidor, chave, timestamp);
-        Mensagem resposta = enviarMensagem(mensagem);
+        Mensagem resposta = enviarReceberMensagem(mensagem);
         
         if (resposta == null)
         {
@@ -172,7 +176,7 @@ public class Cliente {
                 + ", meu timestamp " + timestamp + " e do servidor " + resposta.getTimestamp());
     }
 
-    private static Mensagem enviarMensagem(Mensagem mensagem) throws IOException {
+    private static Mensagem enviarReceberMensagem(Mensagem mensagem) throws IOException {
         String ipPortaDestino = mensagem.getIpPortaDestino();
         String ip = recuperaIp(ipPortaDestino);
         int porta = recuperaPorta(ipPortaDestino);
@@ -196,6 +200,47 @@ public class Cliente {
         }
         
         return resposta;
+    }
+    
+    private static void enviarMensagem(Mensagem mensagem) {
+        String ipPortaDestino = mensagem.getIpPortaDestino();
+        String ip = recuperaIp(ipPortaDestino);
+        int porta = recuperaPorta(ipPortaDestino);
+        
+        System.out.println("Enviando mensagem para " + ip + " e porta " + porta);
+        
+        try (Socket s = new Socket(ip, porta)) {
+            OutputStream os = s.getOutputStream();
+            DataOutputStream writer = new DataOutputStream(os);
+            
+            String json = Mensagem.serializar(mensagem);
+            writer.writeBytes(json + "\n");
+            System.out.println("Mensagem enviada");
+            
+        } catch (Exception ex) {
+            System.out.println("ERRO: " + ex.getMessage());
+        }
+    }
+    
+    private static Mensagem receberMensagem() throws IOException {
+        int porta = recuperaPorta(ipPorta);
+
+        Mensagem mensagem;
+        try (ServerSocket serverSocket = new ServerSocket(porta)) {
+            System.out.println("Esperando conexao");
+            Socket no = serverSocket.accept();
+            System.out.println("Conexao aceita");
+            InputStreamReader is = new InputStreamReader(no.getInputStream());
+            BufferedReader reader = new BufferedReader(is);
+            System.out.println("Recuperando a mensagem da stream");
+            String texto = reader.readLine();
+            System.out.println("texto recuperado " + texto);
+            mensagem = Mensagem.desserializar(texto);
+            
+            no.close();
+        }
+
+        return mensagem;
     }
     
     private static String recuperaIp(String ipPorta) {
