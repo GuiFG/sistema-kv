@@ -86,6 +86,8 @@ public class Cliente {
                     putOk(mensagem);
                 case Mensagem.GET ->
                     get(mensagem);
+                case Mensagem.TRY_OTHER_SERVER_OR_LATER ->
+                    tryOtherServerOrLater(mensagem);
                 default -> {
                 }
             }
@@ -99,17 +101,18 @@ public class Cliente {
         }
 
         private void get(Mensagem resposta) {
-            if (resposta.getTipo() == Mensagem.TRY_OTHER_SERVER_OR_LATER) {
-                System.out.println("GET key: " + resposta.getChave() + " obtido do servidor " + resposta.getIpPortaOrigem()
-                        + ", meu timestamp " + resposta.getTimestamp() + " e do servidor " + resposta.getTimestamp()
-                        + ". Tentar novamente mais tarde ou em outro servidor.");
-                return;
-            }
+            String timestamp = tabelaHash.get(resposta.getChave()).get(1);
 
             System.out.println("GET key: " + resposta.getChave() + " value: " + resposta.getValor() + " obtido do servidor " + resposta.getIpPortaOrigem()
-                    + ", meu timestamp " + resposta.getTimestamp() + " e do servidor " + resposta.getTimestamp());
+                    + ", meu timestamp " + timestamp + " e do servidor " + resposta.getTimestamp());
 
             atualizarTimestamp(resposta);
+        }
+
+        private void tryOtherServerOrLater(Mensagem resposta) {
+            System.out.println("GET key: " + resposta.getChave() + " obtido do servidor " + resposta.getIpPortaOrigem()
+                    + ", meu timestamp " + resposta.getTimestamp() + " e do servidor " + resposta.getTimestamp()
+                    + ". Tentar novamente mais tarde ou em outro servidor.");
         }
     }
 
@@ -196,21 +199,16 @@ public class Cliente {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
 
-        if (tabelaHash.containsKey(chave)) {
-            System.out.println("Chave " + chave + " ja existe");
-            return;
-        }
-
         System.out.println("VALOR = ");
         String valor = scanner.nextLine();
 
         String ipServidor = recuperarServidorAleatorio();
         Mensagem mensagem = Mensagem.criarPutClient(ipPorta, ipServidor, chave, valor);
-        
+
         ThreadAtendimento thread = new ThreadAtendimento(mensagem);
         thread.start();
-        
-        inserirChaveValor(chave, valor, "1");
+
+        inserirChaveValor(chave, valor);
     }
 
     private void inserirChaveValor(Mensagem mensagem) {
@@ -224,12 +222,24 @@ public class Cliente {
         tabelaHash.put(chave, valores);
     }
 
-    private static void inserirChaveValor(String chave, String valor, String timestamp) {
-        ArrayList<String> valores = new ArrayList<>();
+    private static void inserirChaveValor(String chave, String valor) {
+        String timestamp = "0";
+        if (tabelaHash.containsKey(chave)) {
+            timestamp = tabelaHash.get(chave).get(1);
+        }
+        timestamp = somaString(timestamp, 1);
+        
+        ArrayList valores = new ArrayList<>();
         valores.add(0, valor);
         valores.add(1, timestamp);
 
         tabelaHash.put(chave, valores);
+    }
+
+    private static String somaString(String str1, int valor2) {
+        int valor1 = Integer.parseInt(str1);
+
+        return String.valueOf(valor1 + valor2);
     }
 
     private void recuperarValorDaChave(Scanner scanner) throws IOException {
@@ -248,7 +258,7 @@ public class Cliente {
         String ipServidor = recuperarServidorAleatorio();
 
         Mensagem mensagem = Mensagem.criarGetClient(ipPorta, ipServidor, chave, timestamp);
-        
+
         ThreadAtendimento thread = new ThreadAtendimento(mensagem);
         thread.start();
     }

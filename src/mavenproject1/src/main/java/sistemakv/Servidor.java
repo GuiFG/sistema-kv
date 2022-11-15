@@ -199,7 +199,7 @@ public class Servidor {
             // timestamp maior ou igual, retorna o valor da chave
             String valor = valores.get(0);
             log += " " + valor + ".";
-            resposta = Mensagem.criarGet(ipPorta, mensagem.getChave(), valor, timestamp);
+            resposta = Mensagem.criarGet(ipPorta, mensagem.getChave(), valor, timestampServer);
 
             System.out.println(log);
             return resposta;
