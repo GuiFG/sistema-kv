@@ -11,8 +11,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Random;
 import java.util.Scanner;
-import java.util.logging.Level;
-import java.util.logging.Logger;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -185,7 +183,7 @@ public class Servidor {
 
             String timestampServer = valores.get(1);
             String timestamp = mensagem.getTimestamp();
-            log += ". Meu ts é " + timestampServer + ", portando devolvendo";
+            log += ". Meu ts é " + timestampServer + ", portanto devolvendo";
 
             int cmp = CompararTimestamp(timestampServer, timestamp);
 
@@ -277,7 +275,7 @@ public class Servidor {
 
         private static void esperarTempoAleatorio() throws InterruptedException {
             Random random = new Random();
-            int n = random.nextInt(1, 3);
+            int n = random.nextInt(30, 60);
             Thread.sleep(n * 1000);
         }
 

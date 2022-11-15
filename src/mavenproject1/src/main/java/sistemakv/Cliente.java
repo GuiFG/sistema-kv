@@ -28,25 +28,46 @@ public class Cliente {
 
     public class ThreadAtendimento extends Thread {
 
-        private final Socket no;
+        private Socket socket;
+        private final Mensagem mensagem;
 
-        public ThreadAtendimento(Socket no) {
-            this.no = no;
+        public ThreadAtendimento(Mensagem mensagem) {
+            this.mensagem = mensagem;
+            this.socket = null;
         }
 
         @Override
         public void run() {
             try {
-                Mensagem mensagem = recuperaMensagemStream();
+                enviarMensagem(mensagem);
 
-                processarMensagem(mensagem);
+                Mensagem resposta = recuperaMensagemStream();
+
+                processarMensagem(resposta);
+
             } catch (IOException ex) {
                 System.out.println(ex.getMessage());
             }
         }
 
+        private void enviarMensagem(Mensagem mensagem) throws IOException {
+            String ipPortaDestino = mensagem.getIpPortaDestino();
+            String ip = recuperaIp(ipPortaDestino);
+            int porta = recuperaPorta(ipPortaDestino);
+
+            System.out.println("Enviando mensagem para " + ip + " e porta " + porta);
+            this.socket = new Socket(ip, porta);
+            OutputStream os = this.socket.getOutputStream();
+            DataOutputStream writer = new DataOutputStream(os);
+
+            String json = Mensagem.serializar(mensagem);
+            writer.writeBytes(json + "\n");
+            System.out.println("Mensagem enviada");
+
+        }
+
         private Mensagem recuperaMensagemStream() throws IOException {
-            InputStreamReader is = new InputStreamReader(no.getInputStream());
+            InputStreamReader is = new InputStreamReader(this.socket.getInputStream());
             BufferedReader reader = new BufferedReader(is);
 
             System.out.println("Recuperando a mensagem da stream");
@@ -54,9 +75,9 @@ public class Cliente {
 
             System.out.println("texto recuperado " + texto);
 
-            Mensagem mensagem = Mensagem.desserializar(texto);
+            Mensagem resposta = Mensagem.desserializar(texto);
 
-            return mensagem;
+            return resposta;
         }
 
         private void processarMensagem(Mensagem mensagem) throws IOException {
@@ -96,6 +117,7 @@ public class Cliente {
         Scanner scanner = new Scanner(System.in);
 
         Boolean run = true;
+        Cliente cliente = new Cliente();
         while (run) {
             try {
                 int opcao = menu(scanner);
@@ -104,9 +126,9 @@ public class Cliente {
                     case INIT ->
                         inicializacao(scanner);
                     case PUT ->
-                        inserirChaveValor(scanner);
+                        cliente.inserirChaveValor(scanner);
                     case GET ->
-                        recuperarValorDaChave(scanner);
+                        cliente.recuperarValorDaChave(scanner);
                     default -> {
                         System.out.println("FIM");
                         run = false;
@@ -142,9 +164,6 @@ public class Cliente {
 
             ipPortasServidores.add(ipServidor);
         }
-
-        Cliente client = new Cliente();
-        client.criarAtendimento();
     }
 
     private static String lerIpPorta(Scanner scanner, String mensagemInput) {
@@ -173,29 +192,25 @@ public class Cliente {
         return matcher.find();
     }
 
-    private void criarAtendimento() throws IOException {
-        int porta = recuperaPorta(ipPorta);
-
-        ServerSocket serverSocket = new ServerSocket(porta);
-        while (true) {
-            System.out.println("Esperando conexao");
-            Socket no = serverSocket.accept();
-            System.out.println("Conexao aceita");
-
-            ThreadAtendimento thread = new ThreadAtendimento(no);
-            thread.start();
-        }
-    }
-
-    private static void inserirChaveValor(Scanner scanner) throws IOException {
+    private void inserirChaveValor(Scanner scanner) throws IOException {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
+
+        if (tabelaHash.containsKey(chave)) {
+            System.out.println("Chave " + chave + " ja existe");
+            return;
+        }
+
         System.out.println("VALOR = ");
         String valor = scanner.nextLine();
 
         String ipServidor = recuperarServidorAleatorio();
         Mensagem mensagem = Mensagem.criarPutClient(ipPorta, ipServidor, chave, valor);
-        enviarMensagem(mensagem);
+        
+        ThreadAtendimento thread = new ThreadAtendimento(mensagem);
+        thread.start();
+        
+        inserirChaveValor(chave, valor, "1");
     }
 
     private void inserirChaveValor(Mensagem mensagem) {
@@ -209,7 +224,15 @@ public class Cliente {
         tabelaHash.put(chave, valores);
     }
 
-    private static void recuperarValorDaChave(Scanner scanner) throws IOException {
+    private static void inserirChaveValor(String chave, String valor, String timestamp) {
+        ArrayList<String> valores = new ArrayList<>();
+        valores.add(0, valor);
+        valores.add(1, timestamp);
+
+        tabelaHash.put(chave, valores);
+    }
+
+    private void recuperarValorDaChave(Scanner scanner) throws IOException {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
 
@@ -225,7 +248,9 @@ public class Cliente {
         String ipServidor = recuperarServidorAleatorio();
 
         Mensagem mensagem = Mensagem.criarGetClient(ipPorta, ipServidor, chave, timestamp);
-        enviarMensagem(mensagem);
+        
+        ThreadAtendimento thread = new ThreadAtendimento(mensagem);
+        thread.start();
     }
 
     private static void atualizarTimestamp(Mensagem mensagem) {
@@ -234,26 +259,6 @@ public class Cliente {
         valores.set(1, mensagem.getTimestamp());
 
         tabelaHash.put(mensagem.getChave(), valores);
-    }
-
-    private static void enviarMensagem(Mensagem mensagem) {
-        String ipPortaDestino = mensagem.getIpPortaDestino();
-        String ip = recuperaIp(ipPortaDestino);
-        int porta = recuperaPorta(ipPortaDestino);
-
-        System.out.println("Enviando mensagem para " + ip + " e porta " + porta);
-
-        try ( Socket s = new Socket(ip, porta)) {
-            OutputStream os = s.getOutputStream();
-            DataOutputStream writer = new DataOutputStream(os);
-
-            String json = Mensagem.serializar(mensagem);
-            writer.writeBytes(json + "\n");
-            System.out.println("Mensagem enviada");
-
-        } catch (Exception ex) {
-            System.out.println("ERRO: " + ex.getMessage());
-        }
     }
 
     private static String recuperaIp(String ipPorta) {
