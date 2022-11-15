@@ -5,7 +5,6 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -203,14 +202,14 @@ public class Cliente {
 
         System.out.println("VALOR = ");
         String valor = scanner.nextLine();
-
+        
+        inserirChaveValor(chave, valor);
+        
         String ipServidor = recuperarServidorAleatorio();
         Mensagem mensagem = Mensagem.criarPutClient(ipPorta, ipServidor, chave, valor);
-
+        
         ThreadAtendimento thread = new ThreadAtendimento(mensagem);
         thread.start();
-
-        inserirChaveValor(chave, valor);
     }
 
     private void inserirChaveValor(Mensagem mensagem) {
