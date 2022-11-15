@@ -185,12 +185,12 @@ public class Servidor {
             String timestamp = mensagem.getTimestamp();
             log += ". Meu ts é " + timestampServer + ", portanto devolvendo";
 
-            int cmp = CompararTimestamp(timestampServer, timestamp);
+            int cmp = compararTimestamp(timestampServer, timestamp);
 
             // se o timestamp for menor, tenta novamente
             if (cmp < 0) {
                 log += " erro.";
-                resposta = Mensagem.criarRetry(timestampServer);
+                resposta = Mensagem.criarRetry(ipPorta, mensagem.getChave(), timestampServer);
 
                 System.out.println(log);
                 return resposta;
@@ -205,7 +205,7 @@ public class Servidor {
             return resposta;
         }
 
-        private static int CompararTimestamp(String tm1, String tm2) {
+        private static int compararTimestamp(String tm1, String tm2) {
             int v1 = Integer.parseInt(tm1);
             int v2 = Integer.parseInt(tm2);
 

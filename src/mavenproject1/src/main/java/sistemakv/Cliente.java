@@ -101,7 +101,7 @@ public class Cliente {
         }
 
         private void get(Mensagem resposta) {
-            String timestamp = tabelaHash.get(resposta.getChave()).get(1);
+            String timestamp = recuperaTimestamp(resposta.getChave());
 
             System.out.println("GET key: " + resposta.getChave() + " value: " + resposta.getValor() + " obtido do servidor " + resposta.getIpPortaOrigem()
                     + ", meu timestamp " + timestamp + " e do servidor " + resposta.getTimestamp());
@@ -110,8 +110,10 @@ public class Cliente {
         }
 
         private void tryOtherServerOrLater(Mensagem resposta) {
+            String timestamp = recuperaTimestamp(resposta.getChave());
+
             System.out.println("GET key: " + resposta.getChave() + " obtido do servidor " + resposta.getIpPortaOrigem()
-                    + ", meu timestamp " + resposta.getTimestamp() + " e do servidor " + resposta.getTimestamp()
+                    + ", meu timestamp " + timestamp + " e do servidor " + resposta.getTimestamp()
                     + ". Tentar novamente mais tarde ou em outro servidor.");
         }
     }
@@ -228,7 +230,7 @@ public class Cliente {
             timestamp = tabelaHash.get(chave).get(1);
         }
         timestamp = somaString(timestamp, 1);
-        
+
         ArrayList valores = new ArrayList<>();
         valores.add(0, valor);
         valores.add(1, timestamp);
@@ -269,6 +271,10 @@ public class Cliente {
         valores.set(1, mensagem.getTimestamp());
 
         tabelaHash.put(mensagem.getChave(), valores);
+    }
+
+    private String recuperaTimestamp(String chave) {
+        return tabelaHash.get(chave).get(1);
     }
 
     private static String recuperaIp(String ipPorta) {

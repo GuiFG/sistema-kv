@@ -136,11 +136,13 @@ public class Mensagem {
         return mensagem;
     }
     
-    public static Mensagem criarRetry(String timestamp) {
+    public static Mensagem criarRetry(String ipOrigem, String chave, String timestamp) {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setModo(Mensagem.MODE_RESPONSE);
         mensagem.setTipo(Mensagem.TRY_OTHER_SERVER_OR_LATER);
+        mensagem.setIpPortaOrigem(ipOrigem);
+        mensagem.setChave(chave);
         mensagem.setTimestamp(timestamp);
         
         return mensagem;
