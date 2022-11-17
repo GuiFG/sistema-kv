@@ -54,19 +54,29 @@ public class Cliente {
             }
         }
 
+        
+        // funcao que envia de fato a mensagem GET para o servidor
         private void enviar(Mensagem mensagem) throws IOException {
+            // enviar a mensagem para o servidor
             enviarMensagem(mensagem);
-
+            
+            // recupera a resposta usando o mesmo socket anterior
             Mensagem resposta = recuperaMensagemStream();
-
+            
+            // atualiza a informacao do GET
             processarMensagem(resposta);
         }
-
+        
+        
+        // funcao que realiza o envio da mensagem PUT para o servidor
         private void enviarReceber(Mensagem msg) throws IOException {
+            // envia a mensagem para o servidor escolhido
             enviarApenas(msg);
-            
+               
+            // espera a resposta do servidor LIDER com o PUT_OK
             Mensagem resposta = escutarMensagemStream();
             
+            // atualiza a informacao recebida
             processarMensagem(resposta);
         }
 
@@ -74,42 +84,33 @@ public class Cliente {
             String ipPortaDestino = mensagem.getIpPortaDestino();
             String ip = recuperaIp(ipPortaDestino);
             int porta = recuperaPorta(ipPortaDestino);
-
-            System.out.println("Enviando mensagem para " + ip + " e porta " + porta);
+            
             this.socket = new Socket(ip, porta);
             OutputStream os = this.socket.getOutputStream();
             DataOutputStream writer = new DataOutputStream(os);
 
             String json = Mensagem.serializar(mensagem);
             writer.writeBytes(json + "\n");
-            System.out.println("Mensagem enviada");
         }
 
         private void enviarApenas(Mensagem msg) throws IOException {
             String ipPortaDestino = msg.getIpPortaDestino();
             String ip = recuperaIp(ipPortaDestino);
             int porta = recuperaPorta(ipPortaDestino);
-
-            System.out.println("Enviando mensagem para " + ip + " e porta " + porta);
+            
             try ( Socket skt = new Socket(ip, porta)) {
                 OutputStream os = skt.getOutputStream();
                 DataOutputStream writer = new DataOutputStream(os);
 
                 String json = Mensagem.serializar(msg);
                 writer.writeBytes(json + "\n");
-                System.out.println("Mensagem enviada");
             }
         }
 
         private Mensagem recuperaMensagemStream() throws IOException {
             InputStreamReader is = new InputStreamReader(this.socket.getInputStream());
             BufferedReader reader = new BufferedReader(is);
-
-            System.out.println("Recuperando a mensagem da stream");
             String texto = reader.readLine();
-
-            System.out.println("texto recuperado " + texto);
-
             Mensagem resposta = Mensagem.desserializar(texto);
 
             return resposta;
@@ -120,14 +121,10 @@ public class Cliente {
 
             Mensagem resposta;
             try (ServerSocket serverSocket = new ServerSocket(porta)) {
-                System.out.println("Esperando conexao");
                 try (Socket no = serverSocket.accept()) {
-                    System.out.println("Conexao aceita");
                     InputStreamReader is = new InputStreamReader(no.getInputStream());
                     BufferedReader reader = new BufferedReader(is);
-                    System.out.println("Recuperando a mensagem da stream");
                     String texto = reader.readLine();
-                    System.out.println("texto recuperado " + texto);
                     resposta = Mensagem.desserializar(texto);
                 }
             }
@@ -158,7 +155,7 @@ public class Cliente {
         }
 
         private void get(Mensagem resposta) {
-            String timestamp = recuperaTimestamp(resposta.getChave());
+            String timestamp = recuperaTimestamp(resposta);
 
             System.out.println("GET key: " + resposta.getChave() + " value: " + resposta.getValor() + " obtido do servidor " + resposta.getIpPortaOrigem()
                     + ", meu timestamp " + timestamp + " e do servidor " + resposta.getTimestamp());
@@ -167,7 +164,7 @@ public class Cliente {
         }
 
         private void tryOtherServerOrLater(Mensagem resposta) {
-            String timestamp = recuperaTimestamp(resposta.getChave());
+            String timestamp = recuperaTimestamp(resposta);
 
             System.out.println("GET key: " + resposta.getChave() + " obtido do servidor " + resposta.getIpPortaOrigem()
                     + ", meu timestamp " + timestamp + " e do servidor " + resposta.getTimestamp()
@@ -218,10 +215,13 @@ public class Cliente {
 
         return opcao;
     }
-
+    
+    // funcao responsavel pela inicializacao do cliente
     private static void inicializacao(Scanner scanner) throws IOException {
+        // le o ip e porta do client atual
         ipPorta = lerIpPorta(scanner, "IP:PORTA = ");
 
+        // le o ip e porta dos servidores
         for (int i = 0; i < TOTAL_SERVIDORES; i++) {
             String ipServidor = lerIpPorta(scanner, "IP:PORTA SERVIDOR = ");
 
@@ -254,7 +254,8 @@ public class Cliente {
 
         return matcher.find();
     }
-
+    
+    // funcao recupera do teclado a chave e o valor para realizar o PUT
     private void inserirChaveValor(Scanner scanner) throws IOException {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
@@ -263,10 +264,14 @@ public class Cliente {
         String valor = scanner.nextLine();
 
         inserirChaveValor(chave, valor);
-
+        
+        // escolhe o servidor de forma aleatoria 
         String ipServidor = recuperarServidorAleatorio();
+        
+        
         Mensagem mensagem = Mensagem.criarPutClient(ipPorta, ipServidor, chave, valor);
-
+        
+        // criar a thread para realizar o envio da mensagem
         ThreadAtendimento thread = new ThreadAtendimento(mensagem);
         thread.start();
     }
@@ -301,38 +306,54 @@ public class Cliente {
 
         return String.valueOf(valor1 + valor2);
     }
-
+    
+    
+    // funcao que recupera do teclado a chave a ser usada no GET
     private void recuperarValorDaChave(Scanner scanner) throws IOException {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
-
-        if (!tabelaHash.containsKey(chave)) {
-            System.out.println("Chave " + chave + " nao existe");
-            return;
+        
+        // caso a chave ainda nao foi registrada, determina o timestamp dela como zero
+        String timestamp = "0";
+        if (tabelaHash.containsKey(chave)) {
+            timestamp = tabelaHash.get(chave).get(1);
         }
-
-        String timestamp = tabelaHash.get(chave).get(1);
-
-        System.out.println("Recuperando valor da chave " + chave + " com timestamp " + timestamp);
-
+        
+        // escolhe o servidor de forma aleatoria
         String ipServidor = recuperarServidorAleatorio();
 
         Mensagem mensagem = Mensagem.criarGetClient(ipPorta, ipServidor, chave, timestamp);
-
+        
+        // cria a thread para realizar a requiscao GET no servidor
         ThreadAtendimento thread = new ThreadAtendimento(mensagem);
         thread.start();
     }
 
     private static void atualizarTimestamp(Mensagem mensagem) {
-        ArrayList<String> valores = tabelaHash.get(mensagem.getChave());
+        String chave = mensagem.getChave();
+        if (!tabelaHash.containsKey(chave)) {
+            ArrayList<String> valores = new ArrayList<>();
+            valores.add(mensagem.getValor());
+            valores.add(mensagem.getTimestamp());
+            
+            tabelaHash.put(chave, valores);
+            return;
+        }
+        
+        ArrayList<String> valores = tabelaHash.get(chave);
 
         valores.set(1, mensagem.getTimestamp());
 
-        tabelaHash.put(mensagem.getChave(), valores);
+        tabelaHash.put(chave, valores);
     }
 
-    private String recuperaTimestamp(String chave) {
-        return tabelaHash.get(chave).get(1);
+    private String recuperaTimestamp(Mensagem msg) {
+        String chave = msg.getChave();
+        
+        if (tabelaHash.containsKey(chave))
+            return tabelaHash.get(chave).get(1);
+            
+        return "0";
     }
 
     private static String recuperaIp(String ipPorta) {
