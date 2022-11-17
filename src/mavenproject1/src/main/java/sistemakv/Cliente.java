@@ -54,19 +54,29 @@ public class Cliente {
             }
         }
 
+        
+        // funcao que envia de fato a mensagem GET para o servidor
         private void enviar(Mensagem mensagem) throws IOException {
+            // enviar a mensagem para o servidor
             enviarMensagem(mensagem);
-
+            
+            // recupera a resposta usando o mesmo socket anterior
             Mensagem resposta = recuperaMensagemStream();
-
+            
+            // atualiza a informacao do GET
             processarMensagem(resposta);
         }
-
+        
+        
+        // funcao que realiza o envio da mensagem PUT para o servidor
         private void enviarReceber(Mensagem msg) throws IOException {
+            // envia a mensagem para o servidor escolhido
             enviarApenas(msg);
-            
+               
+            // espera a resposta do servidor LIDER com o PUT_OK
             Mensagem resposta = escutarMensagemStream();
             
+            // atualiza a informacao recebida
             processarMensagem(resposta);
         }
 
@@ -205,10 +215,13 @@ public class Cliente {
 
         return opcao;
     }
-
+    
+    // funcao responsavel pela inicializacao do cliente
     private static void inicializacao(Scanner scanner) throws IOException {
+        // le o ip e porta do client atual
         ipPorta = lerIpPorta(scanner, "IP:PORTA = ");
 
+        // le o ip e porta dos servidores
         for (int i = 0; i < TOTAL_SERVIDORES; i++) {
             String ipServidor = lerIpPorta(scanner, "IP:PORTA SERVIDOR = ");
 
@@ -241,7 +254,8 @@ public class Cliente {
 
         return matcher.find();
     }
-
+    
+    // funcao recupera do teclado a chave e o valor para realizar o PUT
     private void inserirChaveValor(Scanner scanner) throws IOException {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
@@ -250,10 +264,14 @@ public class Cliente {
         String valor = scanner.nextLine();
 
         inserirChaveValor(chave, valor);
-
+        
+        // escolhe o servidor de forma aleatoria 
         String ipServidor = recuperarServidorAleatorio();
+        
+        
         Mensagem mensagem = Mensagem.criarPutClient(ipPorta, ipServidor, chave, valor);
-
+        
+        // criar a thread para realizar o envio da mensagem
         ThreadAtendimento thread = new ThreadAtendimento(mensagem);
         thread.start();
     }
@@ -288,20 +306,25 @@ public class Cliente {
 
         return String.valueOf(valor1 + valor2);
     }
-
+    
+    
+    // funcao que recupera do teclado a chave a ser usada no GET
     private void recuperarValorDaChave(Scanner scanner) throws IOException {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
-
+        
+        // caso a chave ainda nao foi registrada, determina o timestamp dela como zero
         String timestamp = "0";
         if (tabelaHash.containsKey(chave)) {
             timestamp = tabelaHash.get(chave).get(1);
         }
-
+        
+        // escolhe o servidor de forma aleatoria
         String ipServidor = recuperarServidorAleatorio();
 
         Mensagem mensagem = Mensagem.criarGetClient(ipPorta, ipServidor, chave, timestamp);
-
+        
+        // cria a thread para realizar a requiscao GET no servidor
         ThreadAtendimento thread = new ThreadAtendimento(mensagem);
         thread.start();
     }

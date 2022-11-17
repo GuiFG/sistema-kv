@@ -90,9 +90,12 @@ public class Servidor {
 
             return resposta;
         }
-
+        
+        // funcao que trata as requisicoes do PUT
         private Mensagem put(Mensagem mensagem) throws IOException, InterruptedException {
             Mensagem resposta;
+            
+            // caso na seja o lider, encaminha para o lider
             if (!ipPortaLider.equals(ipPorta)) {
                 System.out.println("Encaminhando PUT key: " + mensagem.getChave()
                         + " value: " + mensagem.getValor() + ".");
@@ -107,7 +110,8 @@ public class Servidor {
 
                 return resposta;
             }
-
+            
+            // quando for o lider, insere as novas informacoes
             String ipOrigem = mensagem.getIpPortaOrigem();
             System.out.println("Cliente " + ipOrigem + " PUT key: "
                     + mensagem.getChave() + " value: " + mensagem.getValor() + ".");
@@ -115,7 +119,8 @@ public class Servidor {
             String valor = mensagem.getValor();
             String timestamp;
             ArrayList<String> valores;
-
+            
+            // Atualiza o timestamp do valor associado a uma determinada chave
             if (tabelaHash.containsKey(chave)) {
                 valores = tabelaHash.get(chave);
                 valores.set(0, valor);
@@ -127,13 +132,15 @@ public class Servidor {
                 timestamp = "1";
                 valores.add(1, timestamp);
             }
-
+            
+            // atualiza a informacao na tabela hash
             tabelaHash.put(chave, valores);
-
+            
+            // envia as mensagens de replicacao para os outros servidores
             ArrayList<Mensagem> mensagens = criarMensagensReplicacao(ipOrigem, chave, valor, timestamp);
             contagemReplication.put(chave, 0);
-
             enviarMensagens(mensagens);
+            
             return null;
         }
 
@@ -160,7 +167,8 @@ public class Servidor {
 
             return String.valueOf(valor1 + valor2);
         }
-
+        
+        // funcao que trata as requisicoes do tipo GET
         private Mensagem get(Mensagem mensagem) {
             String log = "Cliente " + mensagem.getIpPortaOrigem() + " key: " + mensagem.getChave()
                     + " ts: " + mensagem.getTimestamp();
@@ -214,8 +222,10 @@ public class Servidor {
 
             return 0;
         }
-
+        
+        // funcao responsavel pelo tratamento da mensagem REPLICATION enviada pelo servidor lider
         private Mensagem replication(Mensagem mensagem) {
+            // Atualiza as informacores recebidas do servidor
             ArrayList<String> valores = new ArrayList<>();
             valores.add(mensagem.getValor());
             valores.add(mensagem.getTimestamp());
@@ -224,22 +234,27 @@ public class Servidor {
 
             System.out.println("REPLICATION key: " + mensagem.getChave() + " value: " + mensagem.getValor()
                     + " ts: " + mensagem.getTimestamp() + ".");
-
+            
+            // retorna a mensagem de REPLICATION_OK para o servidor lider
             Mensagem resposta = Mensagem.criarReplicationOk(mensagem.getIpPortaOrigem(), mensagem.getChave());
 
             return resposta;
         }
-
+        
+        // funcao responsavel pelo tratamento das mensagem de REPLICATION_OK 
         private Mensagem replicationOk(Mensagem mensagem) {
             String chave = mensagem.getChave();
             int total = SERVIDORES.length - 1;
-
+            
+            // Verifica se foi atualizado em todos os servidores
+            // contagem de mensagem de REPLICATION_OK deve ser igual ao total de servidores vizinhos
             int contagem = contagemReplication.get(chave) + 1;
             if (contagem != total) {
                 contagemReplication.put(chave, contagem);
                 return null;
             }
-
+            
+            // recebido todos os REPLICATION_OK envia a mensagem de PUT_OK para o cliente
             ArrayList<String> valores = tabelaHash.get(chave);
             String valor = valores.get(0);
             String timestamp = valores.get(1);
@@ -331,14 +346,15 @@ public class Servidor {
             }
         }
     }
-
+    
+    // funcao responsavel pela inicializacao do servidor
     private static void inicializacao(Scanner scanner) {
         System.out.println("IP PORTA = ");
         ipPorta = lerIpPorta(scanner);
 
         System.out.println("IP PORTA LIDER = ");
         ipPortaLider = lerIpPorta(scanner);
-
+        
         String porta = String.valueOf(recuperaPorta(ipPortaLider));
         atualizarIndiceLider(porta);
     }
@@ -379,14 +395,16 @@ public class Servidor {
 
         return matcher.find();
     }
-
+    
+    // funcao que cria as thread de atendimento recebidas do cliente
     private void criarAtendimento() throws IOException {
         int porta = recuperaPorta(ipPorta);
 
         ServerSocket serverSocket = new ServerSocket(porta);
         while (true) {
             Socket no = serverSocket.accept();
-
+            
+            // cria uma nova thread para conexao aceita com o cliente
             ThreadAtendimento thread = new ThreadAtendimento(no);
             thread.start();
         }
