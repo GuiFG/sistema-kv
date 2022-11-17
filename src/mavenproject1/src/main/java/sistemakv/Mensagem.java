@@ -14,6 +14,7 @@ public class Mensagem {
     public static final int MODE_SEND = 1;
     public static final int MODE_RESPONSE = 2;
     public static final int MODE_REDIRECT = 3;
+    public static final int MODE_SEND_LISTEN = 4;
     
     private int modo;
     private int tipo;
@@ -43,6 +44,7 @@ public class Mensagem {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setTipo(Mensagem.PUT);
+        mensagem.setModo(Mensagem.MODE_SEND_LISTEN);
         mensagem.setIpPortaOrigem(ipPortaOrigem);
         mensagem.setIpPortaDestino(ipPortaDestino);
         mensagem.setChave(chave);
@@ -114,6 +116,7 @@ public class Mensagem {
         Mensagem mensagem = new Mensagem();
         
         mensagem.setTipo(Mensagem.GET);
+        mensagem.setModo(Mensagem.MODE_SEND);
         mensagem.setIpPortaOrigem(ipOrigem);
         mensagem.setIpPortaDestino(ipDestino);
         mensagem.setChave(chave);

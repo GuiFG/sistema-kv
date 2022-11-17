@@ -5,6 +5,7 @@ import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.ServerSocket;
 import java.net.Socket;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -38,15 +39,35 @@ public class Cliente {
         @Override
         public void run() {
             try {
-                enviarMensagem(mensagem);
-
-                Mensagem resposta = recuperaMensagemStream();
-
-                processarMensagem(resposta);
+                switch (this.mensagem.getModo()) {
+                    case Mensagem.MODE_SEND:
+                        enviar(mensagem);
+                        break;
+                    case Mensagem.MODE_SEND_LISTEN:
+                        enviarReceber(mensagem);
+                        break;
+                    default:
+                }
 
             } catch (IOException ex) {
                 System.out.println(ex.getMessage());
             }
+        }
+
+        private void enviar(Mensagem mensagem) throws IOException {
+            enviarMensagem(mensagem);
+
+            Mensagem resposta = recuperaMensagemStream();
+
+            processarMensagem(resposta);
+        }
+
+        private void enviarReceber(Mensagem msg) throws IOException {
+            enviarApenas(msg);
+            
+            Mensagem resposta = escutarMensagemStream();
+            
+            processarMensagem(resposta);
         }
 
         private void enviarMensagem(Mensagem mensagem) throws IOException {
@@ -62,7 +83,22 @@ public class Cliente {
             String json = Mensagem.serializar(mensagem);
             writer.writeBytes(json + "\n");
             System.out.println("Mensagem enviada");
+        }
 
+        private void enviarApenas(Mensagem msg) throws IOException {
+            String ipPortaDestino = msg.getIpPortaDestino();
+            String ip = recuperaIp(ipPortaDestino);
+            int porta = recuperaPorta(ipPortaDestino);
+
+            System.out.println("Enviando mensagem para " + ip + " e porta " + porta);
+            try ( Socket skt = new Socket(ip, porta)) {
+                OutputStream os = skt.getOutputStream();
+                DataOutputStream writer = new DataOutputStream(os);
+
+                String json = Mensagem.serializar(msg);
+                writer.writeBytes(json + "\n");
+                System.out.println("Mensagem enviada");
+            }
         }
 
         private Mensagem recuperaMensagemStream() throws IOException {
@@ -75,6 +111,26 @@ public class Cliente {
             System.out.println("texto recuperado " + texto);
 
             Mensagem resposta = Mensagem.desserializar(texto);
+
+            return resposta;
+        }
+
+        private Mensagem escutarMensagemStream() throws IOException {
+            int porta = recuperaPorta(ipPorta);
+
+            Mensagem resposta;
+            try (ServerSocket serverSocket = new ServerSocket(porta)) {
+                System.out.println("Esperando conexao");
+                try (Socket no = serverSocket.accept()) {
+                    System.out.println("Conexao aceita");
+                    InputStreamReader is = new InputStreamReader(no.getInputStream());
+                    BufferedReader reader = new BufferedReader(is);
+                    System.out.println("Recuperando a mensagem da stream");
+                    String texto = reader.readLine();
+                    System.out.println("texto recuperado " + texto);
+                    resposta = Mensagem.desserializar(texto);
+                }
+            }
 
             return resposta;
         }
@@ -138,7 +194,7 @@ public class Cliente {
                     case GET:
                         cliente.recuperarValorDaChave(scanner);
                         break;
-                    default: 
+                    default:
                         System.out.println("FIM");
                         run = false;
                 }
@@ -205,12 +261,12 @@ public class Cliente {
 
         System.out.println("VALOR = ");
         String valor = scanner.nextLine();
-        
+
         inserirChaveValor(chave, valor);
-        
+
         String ipServidor = recuperarServidorAleatorio();
         Mensagem mensagem = Mensagem.criarPutClient(ipPorta, ipServidor, chave, valor);
-        
+
         ThreadAtendimento thread = new ThreadAtendimento(mensagem);
         thread.start();
     }
