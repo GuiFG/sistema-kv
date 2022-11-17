@@ -74,42 +74,33 @@ public class Cliente {
             String ipPortaDestino = mensagem.getIpPortaDestino();
             String ip = recuperaIp(ipPortaDestino);
             int porta = recuperaPorta(ipPortaDestino);
-
-            System.out.println("Enviando mensagem para " + ip + " e porta " + porta);
+            
             this.socket = new Socket(ip, porta);
             OutputStream os = this.socket.getOutputStream();
             DataOutputStream writer = new DataOutputStream(os);
 
             String json = Mensagem.serializar(mensagem);
             writer.writeBytes(json + "\n");
-            System.out.println("Mensagem enviada");
         }
 
         private void enviarApenas(Mensagem msg) throws IOException {
             String ipPortaDestino = msg.getIpPortaDestino();
             String ip = recuperaIp(ipPortaDestino);
             int porta = recuperaPorta(ipPortaDestino);
-
-            System.out.println("Enviando mensagem para " + ip + " e porta " + porta);
+            
             try ( Socket skt = new Socket(ip, porta)) {
                 OutputStream os = skt.getOutputStream();
                 DataOutputStream writer = new DataOutputStream(os);
 
                 String json = Mensagem.serializar(msg);
                 writer.writeBytes(json + "\n");
-                System.out.println("Mensagem enviada");
             }
         }
 
         private Mensagem recuperaMensagemStream() throws IOException {
             InputStreamReader is = new InputStreamReader(this.socket.getInputStream());
             BufferedReader reader = new BufferedReader(is);
-
-            System.out.println("Recuperando a mensagem da stream");
             String texto = reader.readLine();
-
-            System.out.println("texto recuperado " + texto);
-
             Mensagem resposta = Mensagem.desserializar(texto);
 
             return resposta;
@@ -120,14 +111,10 @@ public class Cliente {
 
             Mensagem resposta;
             try (ServerSocket serverSocket = new ServerSocket(porta)) {
-                System.out.println("Esperando conexao");
                 try (Socket no = serverSocket.accept()) {
-                    System.out.println("Conexao aceita");
                     InputStreamReader is = new InputStreamReader(no.getInputStream());
                     BufferedReader reader = new BufferedReader(is);
-                    System.out.println("Recuperando a mensagem da stream");
                     String texto = reader.readLine();
-                    System.out.println("texto recuperado " + texto);
                     resposta = Mensagem.desserializar(texto);
                 }
             }
@@ -306,14 +293,10 @@ public class Cliente {
         System.out.println("CHAVE = ");
         String chave = scanner.nextLine();
 
-        if (!tabelaHash.containsKey(chave)) {
-            System.out.println("Chave " + chave + " nao existe");
-            return;
+        String timestamp = "0";
+        if (tabelaHash.containsKey(chave)) {
+            timestamp = tabelaHash.get(chave).get(1);
         }
-
-        String timestamp = tabelaHash.get(chave).get(1);
-
-        System.out.println("Recuperando valor da chave " + chave + " com timestamp " + timestamp);
 
         String ipServidor = recuperarServidorAleatorio();
 
@@ -324,11 +307,21 @@ public class Cliente {
     }
 
     private static void atualizarTimestamp(Mensagem mensagem) {
-        ArrayList<String> valores = tabelaHash.get(mensagem.getChave());
+        String chave = mensagem.getChave();
+        if (!tabelaHash.containsKey(chave)) {
+            ArrayList<String> valores = new ArrayList<>();
+            valores.add(mensagem.getValor());
+            valores.add(mensagem.getTimestamp());
+            
+            tabelaHash.put(chave, valores);
+            return;
+        }
+        
+        ArrayList<String> valores = tabelaHash.get(chave);
 
         valores.set(1, mensagem.getTimestamp());
 
-        tabelaHash.put(mensagem.getChave(), valores);
+        tabelaHash.put(chave, valores);
     }
 
     private String recuperaTimestamp(String chave) {
