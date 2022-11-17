@@ -63,14 +63,9 @@ public class Servidor {
         private Mensagem recuperaMensagemStream() throws IOException {
             InputStreamReader is = new InputStreamReader(no.getInputStream());
             BufferedReader reader = new BufferedReader(is);
-
-            System.out.println("Recuperando a mensagem da stream");
             String texto = reader.readLine();
 
-            System.out.println("texto recuperado " + texto);
-
             Mensagem mensagem = Mensagem.desserializar(texto);
-
             return mensagem;
         }
 
@@ -97,13 +92,11 @@ public class Servidor {
         }
 
         private Mensagem put(Mensagem mensagem) throws IOException, InterruptedException {
-            System.out.println("Entrando no put");
             Mensagem resposta;
             if (!ipPortaLider.equals(ipPorta)) {
                 System.out.println("Encaminhando PUT key: " + mensagem.getChave()
                         + " value: " + mensagem.getValor() + ".");
-
-                System.out.println("Encaminhando para o lider " + ipPortaLider);
+                
                 resposta = Mensagem.criarPut(
                         mensagem.getIpPortaOrigem(),
                         ipPortaLider,
@@ -153,7 +146,6 @@ public class Servidor {
                 }
 
                 String ipDestino = LOCALHOST + ":" + SERVIDORES[i];
-                System.out.println("Criando mensagem de replication para " + ipDestino);
                 Mensagem mensagem = Mensagem.criarReplication(
                         ipOrigem, ipDestino, chave, valor, timestamp
                 );
@@ -243,14 +235,10 @@ public class Servidor {
             int total = SERVIDORES.length - 1;
 
             int contagem = contagemReplication.get(chave) + 1;
-            System.out.println("Contagem " + contagem + " total " + total);
             if (contagem != total) {
-                System.out.println("Aumentando a contagem do replication ok");
                 contagemReplication.put(chave, contagem);
                 return null;
             }
-
-            System.out.println("replication ok para todos os servidores");
 
             ArrayList<String> valores = tabelaHash.get(chave);
             String valor = valores.get(0);
@@ -268,17 +256,14 @@ public class Servidor {
 
         private void enviarMensagens(ArrayList<Mensagem> mensagens) throws IOException, InterruptedException {
             for (Mensagem mensagem : mensagens) {
-                System.out.println("Enviando mensagem para " + mensagem.getIpPortaDestino());
-
                 esperarTempoAleatorio();
-
                 enviarMensagem(mensagem);
             }
         }
 
         private void esperarTempoAleatorio() throws InterruptedException {
             Random random = new Random();
-            int n = random.nextInt(30);
+            int n = random.nextInt(20);
             Thread.sleep(n * 1000);
         }
 
@@ -311,8 +296,6 @@ public class Servidor {
                 writer.writeBytes(json + "\n");
 
                 String texto = reader.readLine();
-                System.out.println("resposta recebida " + ipPortaDestino + " " + texto);
-
                 Mensagem resposta = Mensagem.desserializar(texto);
                 retorno = processarMensagem(resposta);
             } catch (Exception ex) {
@@ -402,9 +385,7 @@ public class Servidor {
 
         ServerSocket serverSocket = new ServerSocket(porta);
         while (true) {
-            System.out.println("Esperando conexao");
             Socket no = serverSocket.accept();
-            System.out.println("Conexao aceita");
 
             ThreadAtendimento thread = new ThreadAtendimento(no);
             thread.start();
